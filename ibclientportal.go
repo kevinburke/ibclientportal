@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/kevinburke/rest/restclient"
 )
@@ -17,7 +18,8 @@ type Client struct {
 	*restclient.Client
 	insecureSkipVerify bool
 
-	Contracts *ContractService
+	Contracts  *ContractService
+	MarketData *MarketDataService
 }
 
 // The ibclientportal version. Run "make release" to bump this number.
@@ -76,7 +78,60 @@ func (c *ContractService) Stocks(ctx context.Context, query url.Values) (Contrac
 	return val, err
 }
 
-const DefaultHost = "https://localhost:5001"
+type MarketDataService struct {
+	client *Client
+}
+
+func (m *MarketDataService) History(ctx context.Context, query url.Values) (*MarketDataHistoryResponse, error) {
+	path := "/iserver/marketdata/history"
+	var val MarketDataHistoryResponse
+	err := m.client.ListResource(ctx, path, query, &val)
+	return &val, err
+}
+
+type MarketDataHistoryResponse struct {
+	Symbol     string                  `json:"symbol"`
+	Text       string                  `json:"text"`
+	TimePeriod string                  `json:"timePeriod"`
+	Data       []MarketDataHistoryData `json:"data"`
+}
+
+type MarketDataHistoryData struct {
+	Open   float64 `json:"o"`
+	Close  float64 `json:"c"`
+	High   float64 `json:"h"`
+	Low    float64 `json:"l"`
+	Volume int64   `json:"v"`
+	// TODO: convert this to a native format.
+	// TODO: this is a "timeless" unit.
+	TimestampMillis int64 `json:"t"`
+
+	time time.Time
+}
+
+type Day struct {
+	Year  int
+	Month time.Month
+	Day   int
+}
+
+func (m *MarketDataHistoryData) Day() Day {
+	m.fillTime()
+	return Day{m.time.Year(), m.time.Month(), m.time.Day()}
+}
+
+func (m *MarketDataHistoryData) fillTime() {
+	if m.time.IsZero() {
+		m.time = time.UnixMilli(m.TimestampMillis)
+	}
+}
+
+func (m *MarketDataHistoryData) Time() time.Time {
+	m.fillTime()
+	return m.time
+}
+
+const DefaultHost = "https://localhost:5000"
 
 func New(host string) *Client {
 	if host == "" {
@@ -88,6 +143,7 @@ func New(host string) *Client {
 	}
 
 	c.Contracts = &ContractService{c}
+	c.MarketData = &MarketDataService{c}
 	return c
 }
 

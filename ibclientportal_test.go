@@ -2,6 +2,7 @@ package ibclientportal
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"testing"
 	"time"
@@ -43,4 +44,22 @@ func TestStocks(t *testing.T) {
 	if count != 1 {
 		t.Errorf("incorrect number of in-US results: %#v", voo[0].Contracts)
 	}
+}
+
+func TestMarketData(t *testing.T) {
+	c := New("")
+	c.SetInsecureSkipVerify()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	query := url.Values{}
+	query.Set("conid", "136155102")
+	query.Set("period", "10d")
+	hist, err := c.MarketData.History(ctx, query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("hist: %#v\n", hist)
+	fmt.Println(hist.Data[0].Day())
+	fmt.Println(hist.Data[0].Time())
+	t.Fail()
 }
