@@ -312,3 +312,50 @@ $ curl -k https://localhost:5001/v1/api/iserver/marketdata/history\?conid\=13615
     "points": 28,
     "travelTime": 7
 }
+
+### Search for con id for symbol
+
+```
+> POST /v1/api/iserver/secdef/search HTTP/1.1
+> Host: localhost:5000
+> User-Agent: curl/7.87.0
+> Accept: */*
+> Content-Type: application/json
+> Content-Length: 19
+>
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+HTTP/1.1 200 OK
+< Referrer-Policy: Origin-when-cross-origin
+Referrer-Policy: Origin-when-cross-origin
+< x-response-time: 64ms
+x-response-time: 64ms
+< Content-Type: application/json;charset=utf-8
+Content-Type: application/json;charset=utf-8
+< X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+< Expires: Tue, 17 Jan 2023 06:44:19 GMT
+Expires: Tue, 17 Jan 2023 06:44:19 GMT
+< Cache-Control: max-age=0, no-cache, no-store
+Cache-Control: max-age=0, no-cache, no-store
+< Pragma: no-cache
+Pragma: no-cache
+< Date: Tue, 17 Jan 2023 06:44:19 GMT
+Date: Tue, 17 Jan 2023 06:44:19 GMT
+< Connection: keep-alive
+Connection: keep-alive
+< Server-Timing: cdn-cache; desc=MISS
+Server-Timing: cdn-cache; desc=MISS
+< Server-Timing: edge; dur=55
+Server-Timing: edge; dur=55
+< Server-Timing: origin; dur=110
+Server-Timing: origin; dur=110
+< Vary: Origin
+Vary: Origin
+< Transfer-Encoding: chunked
+Transfer-Encoding: chunked
+
+<
+* Connection #0 to host localhost left intact
+[{"conid":"145972066","companyHeader":"Vanguard Global Minimum Volatility Fund (Vanguard)","companyName":"Vanguard Global Minimum Volatility Fund (Vanguard)","symbol":"VMNVX","description":null,"restricted":null,"fop":null,"opt":null,"war":null,"sections":[{"secType":"FUND"}]}]
+```

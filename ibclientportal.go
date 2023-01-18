@@ -1,12 +1,13 @@
 package ibclientportal
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/kevinburke/rest/restclient"
@@ -18,8 +19,9 @@ type Client struct {
 	*restclient.Client
 	insecureSkipVerify bool
 
-	Contracts  *ContractService
-	MarketData *MarketDataService
+	SecurityDefinitions *SecurityDefinitionService
+	Contracts           *ContractService
+	MarketData          *MarketDataService
 }
 
 // The ibclientportal version. Run "make release" to bump this number.
@@ -27,29 +29,36 @@ const Version = "0.1"
 
 const userAgent = "buildkite-go/" + Version
 
-func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, v interface{}) error {
-	rb := new(strings.Reader)
-	if data != nil && (method == "POST" || method == "PUT") {
-		rb = strings.NewReader(data.Encode())
+func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, requestBody interface{}, resp interface{}) error {
+	var rb *bytes.Reader
+	if requestBody != nil && (method == "POST" || method == "PUT") {
+		jsonData, err := json.Marshal(requestBody)
+		if err != nil {
+			return err
+		}
+		rb = bytes.NewReader(jsonData)
 	}
 	if method == "GET" && data != nil {
 		pathPart = pathPart + "?" + data.Encode()
 	}
-	req, err := c.NewRequest(method, pathPart, rb)
+	req, err := c.NewRequestWithContext(ctx, method, pathPart, rb)
 	if err != nil {
 		return err
 	}
-	req = req.WithContext(ctx)
 	if ua := req.Header.Get("User-Agent"); ua == "" {
 		req.Header.Set("User-Agent", userAgent)
 	} else {
 		req.Header.Set("User-Agent", userAgent+" "+ua)
 	}
-	return c.Do(req, &v)
+	return c.Do(req, &resp)
 }
 
 func (c *Client) ListResource(ctx context.Context, pathPart string, data url.Values, v interface{}) error {
-	return c.MakeRequest(ctx, "GET", pathPart, data, v)
+	return c.MakeRequest(ctx, "GET", pathPart, data, nil, v)
+}
+
+func (c *Client) UpdateResource(ctx context.Context, pathPart string, data interface{}, resp interface{}) error {
+	return c.MakeRequest(ctx, "POST", pathPart, url.Values{}, data, resp)
 }
 
 type ContractService struct {
@@ -75,6 +84,37 @@ func (c *ContractService) Stocks(ctx context.Context, query url.Values) (Contrac
 	path := "/trsrv/stocks"
 	var val ContractStocksResponse
 	err := c.client.ListResource(ctx, path, query, &val)
+	return val, err
+}
+
+type SecurityDefinitionService struct {
+	client *Client
+}
+
+type SecurityDefinitionSearchParameters struct {
+	// symbol or name to be searched
+	Symbol string `json:"symbol,omitempty"`
+	// should be true if the search is to be performed by name. false by default.
+	Name bool `json:"name"`
+	// If search is done by name, only the assets provided in this field will be returned. Currently, only STK is supported.
+	SecType string `json:"secType,omitempty"`
+}
+
+type SecurityDefinitionSearchResponse []SecurityDefinitionSearchElement
+
+type SecurityDefinitionSearchElement struct {
+	ContractID  int64  `json:"conid"`
+	CompanyName string `json:"companyName"`
+	Symbol      string `json:"symbol"`
+	Description string `json:"description"`
+
+	// more fields...
+}
+
+func (c *SecurityDefinitionService) Search(ctx context.Context, query SecurityDefinitionSearchParameters) (SecurityDefinitionSearchResponse, error) {
+	path := "/iserver/secdef/search"
+	var val SecurityDefinitionSearchResponse
+	err := c.client.UpdateResource(ctx, path, query, &val)
 	return val, err
 }
 
@@ -138,6 +178,7 @@ func New(host string) *Client {
 		host = DefaultHost
 	}
 	rc := restclient.New("", "", DefaultHost+"/v1/api")
+	rc.UploadType = restclient.JSON
 	c := &Client{
 		Client: rc,
 	}
