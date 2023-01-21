@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -30,7 +31,10 @@ const Version = "0.1"
 const userAgent = "buildkite-go/" + Version
 
 func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, requestBody interface{}, resp interface{}) error {
-	var rb *bytes.Reader
+	if c == nil {
+		panic("nil client")
+	}
+	var rb io.Reader = nil
 	if requestBody != nil && (method == "POST" || method == "PUT") {
 		jsonData, err := json.Marshal(requestBody)
 		if err != nil {
@@ -103,7 +107,9 @@ type SecurityDefinitionSearchParameters struct {
 type SecurityDefinitionSearchResponse []SecurityDefinitionSearchElement
 
 type SecurityDefinitionSearchElement struct {
-	ContractID  int64  `json:"conid"`
+	// TODO! Serialize to int64
+	ContractID string `json:"conid"`
+
 	CompanyName string `json:"companyName"`
 	Symbol      string `json:"symbol"`
 	Description string `json:"description"`
@@ -185,6 +191,7 @@ func New(host string) *Client {
 
 	c.Contracts = &ContractService{c}
 	c.MarketData = &MarketDataService{c}
+	c.SecurityDefinitions = &SecurityDefinitionService{c}
 	return c
 }
 

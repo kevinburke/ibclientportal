@@ -63,3 +63,18 @@ func TestMarketData(t *testing.T) {
 	fmt.Println(hist.Data[0].Time())
 	t.Fail()
 }
+
+func TestSearch(t *testing.T) {
+	c := New("")
+	c.SetInsecureSkipVerify()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	hist, err := c.SecurityDefinitions.Search(ctx, SecurityDefinitionSearchParameters{
+		Symbol: "VMNVX",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("hist: %#v\n", hist)
+	t.Fail()
+}
