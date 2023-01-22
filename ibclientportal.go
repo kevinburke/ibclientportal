@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/kevinburke/rest/restclient"
@@ -107,7 +108,16 @@ type SecurityDefinitionSearchParameters struct {
 type SecurityDefinitionSearchResponse []SecurityDefinitionSearchElement
 
 type SecurityDefinitionSearchElement struct {
-	// TODO! Serialize to int64
+	ContractID int64 `json:"conid"`
+
+	CompanyName string `json:"companyName"`
+	Symbol      string `json:"symbol"`
+	Description string `json:"description"`
+
+	// more fields...
+}
+
+type securityDefinitionSearchElement struct {
 	ContractID string `json:"conid"`
 
 	CompanyName string `json:"companyName"`
@@ -115,6 +125,22 @@ type SecurityDefinitionSearchElement struct {
 	Description string `json:"description"`
 
 	// more fields...
+}
+
+func (s *SecurityDefinitionSearchElement) UnmarshalJSON(p []byte) error {
+	se := new(securityDefinitionSearchElement)
+	if err := json.Unmarshal(p, se); err != nil {
+		return err
+	}
+	conid, err := strconv.ParseInt(se.ContractID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("could not parse ContractID %q as int64: %v", se.ContractID, err)
+	}
+	s.ContractID = conid
+	s.CompanyName = se.CompanyName
+	s.Symbol = se.Symbol
+	s.Description = se.Description
+	return nil
 }
 
 func (c *SecurityDefinitionService) Search(ctx context.Context, query SecurityDefinitionSearchParameters) (SecurityDefinitionSearchResponse, error) {
