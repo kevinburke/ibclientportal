@@ -29,7 +29,7 @@ type Client struct {
 // The ibclientportal version. Run "make release" to bump this number.
 const Version = "0.1"
 
-const userAgent = "buildkite-go/" + Version
+const userAgent = "ibclientportal-go/" + Version
 
 func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, requestBody interface{}, resp interface{}) error {
 	if c == nil {
@@ -169,6 +169,15 @@ type MarketDataHistoryResponse struct {
 }
 
 type MarketDataHistoryData struct {
+	Open   float64
+	Close  float64
+	High   float64
+	Low    float64
+	Volume int64
+	Time   time.Time
+}
+
+type marketDataHistoryData struct {
 	Open   float64 `json:"o"`
 	Close  float64 `json:"c"`
 	High   float64 `json:"h"`
@@ -177,8 +186,20 @@ type MarketDataHistoryData struct {
 	// TODO: convert this to a native format.
 	// TODO: this is a "timeless" unit.
 	TimestampMillis int64 `json:"t"`
+}
 
-	time time.Time
+func (m *MarketDataHistoryData) UnmarshalJSON(p []byte) error {
+	se := new(marketDataHistoryData)
+	if err := json.Unmarshal(p, se); err != nil {
+		return err
+	}
+	m.Open = se.Open
+	m.Close = se.Close
+	m.High = se.High
+	m.Low = se.Low
+	m.Volume = se.Volume
+	m.Time = time.UnixMilli(se.TimestampMillis)
+	return nil
 }
 
 type Day struct {
@@ -188,19 +209,7 @@ type Day struct {
 }
 
 func (m *MarketDataHistoryData) Day() Day {
-	m.fillTime()
-	return Day{m.time.Year(), m.time.Month(), m.time.Day()}
-}
-
-func (m *MarketDataHistoryData) fillTime() {
-	if m.time.IsZero() {
-		m.time = time.UnixMilli(m.TimestampMillis)
-	}
-}
-
-func (m *MarketDataHistoryData) Time() time.Time {
-	m.fillTime()
-	return m.time
+	return Day{m.Time.Year(), m.Time.Month(), m.Time.Day()}
 }
 
 const DefaultHost = "https://localhost:5000"
