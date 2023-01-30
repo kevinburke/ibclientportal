@@ -359,3 +359,47 @@ Transfer-Encoding: chunked
 * Connection #0 to host localhost left intact
 [{"conid":"145972066","companyHeader":"Vanguard Global Minimum Volatility Fund (Vanguard)","companyName":"Vanguard Global Minimum Volatility Fund (Vanguard)","symbol":"VMNVX","description":null,"restricted":null,"fop":null,"opt":null,"war":null,"sections":[{"secType":"FUND"}]}]
 ```
+
+## Search for options contracts
+
+conid is the underlying contract ID.
+
+$ curl --silent -k -X GET https://localhost:5000/v1/api/iserver/secdef/info\?conid\=52197301\&month\=FEB23\&sectype\=OPT\&strike\=88 | python -mjson.tool
+[
+    {
+        "conid": 568248351,
+        "symbol": "VT",
+        "secType": "OPT",
+        "exchange": "SMART",
+        "listingExchange": null,
+        "right": "C",
+        "strike": 88.0,
+        "currency": "USD",
+        "cusip": null,
+        "coupon": "No Coupon",
+        "desc1": "VT",
+        "desc2": "FEB 17 '23 88 Call",
+        "maturityDate": "20230217",
+        "multiplier": "100",
+        "tradingClass": "VT",
+        "validExchanges": "SMART,CBOE,PSE,ISE,BOX,BATS,CBOE2,MIAX,GEMINI,EDGX,MERCURY,PEARL,EMERALD,IBUSOPT"
+    },
+    {
+        "conid": 568249644,
+        "symbol": "VT",
+        "secType": "OPT",
+        "exchange": "SMART",
+        "listingExchange": null,
+        "right": "P",
+        "strike": 88.0,
+        "currency": "USD",
+        "cusip": null,
+        "coupon": "No Coupon",
+        "desc1": "VT",
+        "desc2": "FEB 17 '23 88 Put",
+        "maturityDate": "20230217",
+        "multiplier": "100",
+        "tradingClass": "VT",
+        "validExchanges": "SMART,CBOE,PSE,ISE,BOX,BATS,CBOE2,MIAX,GEMINI,EDGX,MERCURY,PEARL,EMERALD,IBUSOPT"
+    }
+]
