@@ -60,7 +60,7 @@ func TestMarketData(t *testing.T) {
 	}
 	fmt.Printf("hist: %#v\n", hist)
 	fmt.Println(hist.Data[0].Day())
-	fmt.Println(hist.Data[0].Time())
+	fmt.Println(hist.Data[0].Time)
 	t.Fail()
 }
 
