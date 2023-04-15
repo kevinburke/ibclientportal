@@ -78,3 +78,16 @@ func TestSearch(t *testing.T) {
 	fmt.Printf("hist: %#v\n", hist)
 	t.Fail()
 }
+
+func TestTickle(t *testing.T) {
+	c := New("")
+	c.SetInsecureSkipVerify()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	resp, err := c.Tickle(ctx, url.Values{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("resp: %#v\n", resp)
+	t.Fail()
+}

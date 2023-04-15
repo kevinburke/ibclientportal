@@ -101,3 +101,25 @@ var historyMarketDataResponse = []byte(`
     "travelTime": 52
 }
 `)
+
+var tickleResponse = []byte(`
+{
+    "session": "1ac9c9827aefe7ebe7a97de2afa8a51a",
+    "ssoExpires": 228977,
+    "collission": false,
+    "userId": 81619164,
+    "iserver": {
+        "authStatus": {
+            "authenticated": false,
+            "competing": false,
+            "connected": true,
+            "message": "",
+            "MAC": "98:F2:B3:23:AE:D0",
+            "serverInfo": {
+                "serverName": null,
+                "serverVersion": null
+            }
+        }
+    }
+}
+`)

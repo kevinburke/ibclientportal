@@ -66,6 +66,33 @@ func (c *Client) UpdateResource(ctx context.Context, pathPart string, data inter
 	return c.MakeRequest(ctx, "POST", pathPart, url.Values{}, data, resp)
 }
 
+type TickleResponse struct {
+	Session    string        `json:"session"`
+	SSOExpires int64         `json:"ssoExpires"`
+	Collision  bool          `json:"collission"` // sic!
+	UserID     int64         `json:"userId"`
+	IServer    TickleIServer `json:"iServer"`
+}
+
+type TickleIServer struct {
+	AuthStatus TickleAuthStatus `json:"authStatus"`
+}
+
+type TickleAuthStatus struct {
+	Authenticated bool   `json:"authenticated"`
+	Competing     bool   `json:"competing"`
+	Connected     bool   `json:"connected"`
+	Message       string `json:"message"`
+	MAC           string `json:"MAC"`
+}
+
+func (c *Client) Tickle(ctx context.Context, data url.Values) (TickleResponse, error) {
+	path := "/tickle"
+	var val TickleResponse
+	err := c.UpdateResource(ctx, path, data, &val)
+	return val, err
+}
+
 type ContractService struct {
 	client *Client
 }
