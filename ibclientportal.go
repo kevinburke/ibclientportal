@@ -245,7 +245,7 @@ func New(host string) *Client {
 	if host == "" {
 		host = DefaultHost
 	}
-	rc := restclient.New("", "", DefaultHost+"/v1/api")
+	rc := restclient.New("", "", host+"/v1/api")
 	rc.UploadType = restclient.JSON
 	c := &Client{
 		Client: rc,
