@@ -200,7 +200,7 @@ type MarketDataHistoryData struct {
 	Close  float64
 	High   float64
 	Low    float64
-	Volume int64
+	Volume float64
 	Time   time.Time
 }
 
@@ -209,7 +209,7 @@ type marketDataHistoryData struct {
 	Close  float64 `json:"c"`
 	High   float64 `json:"h"`
 	Low    float64 `json:"l"`
-	Volume int64   `json:"v"`
+	Volume float64 `json:"v"`
 	// TODO: convert this to a native format.
 	// TODO: this is a "timeless" unit.
 	TimestampMillis int64 `json:"t"`
