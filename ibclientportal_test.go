@@ -2,11 +2,138 @@ package ibclientportal
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"testing"
 	"time"
 )
+
+func TestOrdersParsing(t *testing.T) {
+	var resp OrdersResponse
+	if err := json.Unmarshal(ordersResponse, &resp); err != nil {
+		t.Fatalf("failed to parse orders response: %v", err)
+	}
+	if !resp.Snapshot {
+		t.Errorf("expected Snapshot true, got false")
+	}
+	if len(resp.Orders) != 1 {
+		t.Fatalf("expected 1 order, got %d", len(resp.Orders))
+	}
+	order := resp.Orders[0]
+	if order.Account != "U1234567" {
+		t.Errorf("expected Account U1234567, got %s", order.Account)
+	}
+	if order.ContractID != 265598 {
+		t.Errorf("expected ContractID 265598, got %d", order.ContractID)
+	}
+	if order.OrderID != 1234568790 {
+		t.Errorf("expected OrderID 1234568790, got %d", order.OrderID)
+	}
+	if order.Ticker != "AAPL" {
+		t.Errorf("expected Ticker AAPL, got %s", order.Ticker)
+	}
+	if order.Status != "Filled" {
+		t.Errorf("expected Status Filled, got %s", order.Status)
+	}
+	if order.FilledQuantity != 5.0 {
+		t.Errorf("expected FilledQuantity 5.0, got %f", order.FilledQuantity)
+	}
+	if order.Side != "SELL" {
+		t.Errorf("expected Side SELL, got %s", order.Side)
+	}
+	if order.AvgPrice != "192.26" {
+		t.Errorf("expected AvgPrice 192.26, got %s", order.AvgPrice)
+	}
+	if order.TimeInForce != "GTC" {
+		t.Errorf("expected TimeInForce GTC, got %s", order.TimeInForce)
+	}
+	if order.LastExecutionTimeR != 1702317649000 {
+		t.Errorf("expected LastExecutionTime_r 1702317649000, got %d", order.LastExecutionTimeR)
+	}
+	if order.OrderRef != "Order123" {
+		t.Errorf("expected OrderRef Order123, got %s", order.OrderRef)
+	}
+}
+
+func TestPositionsParsing(t *testing.T) {
+	var positions []Position
+	if err := json.Unmarshal(positionsResponse, &positions); err != nil {
+		t.Fatalf("failed to parse positions response: %v", err)
+	}
+	if len(positions) != 1 {
+		t.Fatalf("expected 1 position, got %d", len(positions))
+	}
+	pos := positions[0]
+	if pos.Position != 12.0 {
+		t.Errorf("expected Position 12.0, got %f", pos.Position)
+	}
+	if pos.ContractID != 9408 {
+		t.Errorf("expected ContractID 9408, got %d", pos.ContractID)
+	}
+	if pos.Currency != "USD" {
+		t.Errorf("expected Currency USD, got %s", pos.Currency)
+	}
+	if pos.Description != "MCD" {
+		t.Errorf("expected Description MCD, got %s", pos.Description)
+	}
+	if pos.SecType != "STK" {
+		t.Errorf("expected SecType STK, got %s", pos.SecType)
+	}
+	if pos.Timestamp != 1717444668 {
+		t.Errorf("expected Timestamp 1717444668, got %d", pos.Timestamp)
+	}
+	if pos.Sector != "Consumer, Cyclical" {
+		t.Errorf("expected Sector 'Consumer, Cyclical', got %s", pos.Sector)
+	}
+	if pos.Group != "Retail" {
+		t.Errorf("expected Group Retail, got %s", pos.Group)
+	}
+	if pos.IsLastToLiq != false {
+		t.Errorf("expected IsLastToLiq false, got %v", pos.IsLastToLiq)
+	}
+}
+
+func TestAccountsParsing(t *testing.T) {
+	var accounts []Account
+	if err := json.Unmarshal(accountsResponse, &accounts); err != nil {
+		t.Fatalf("failed to parse accounts response: %v", err)
+	}
+	if len(accounts) != 1 {
+		t.Fatalf("expected 1 account, got %d", len(accounts))
+	}
+	acct := accounts[0]
+	if acct.ID != "U1234567" {
+		t.Errorf("expected ID U1234567, got %s", acct.ID)
+	}
+	if acct.AccountID != "U1234567" {
+		t.Errorf("expected AccountID U1234567, got %s", acct.AccountID)
+	}
+	if acct.Currency != "USD" {
+		t.Errorf("expected Currency USD, got %s", acct.Currency)
+	}
+	if acct.Type != "DEMO" {
+		t.Errorf("expected Type DEMO, got %s", acct.Type)
+	}
+	if acct.ClearingStatus != "O" {
+		t.Errorf("expected ClearingStatus O, got %s", acct.ClearingStatus)
+	}
+	if acct.AccountStatus != 1644814800000 {
+		t.Errorf("expected AccountStatus 1644814800000, got %d", acct.AccountStatus)
+	}
+	if acct.TrackVirtualFXPortfolio != true {
+		t.Errorf("expected TrackVirtualFXPortfolio true, got %v", acct.TrackVirtualFXPortfolio)
+	}
+	if acct.BrokerageAccess != true {
+		t.Errorf("expected BrokerageAccess true, got %v", acct.BrokerageAccess)
+	}
+	if acct.AccountAlias != nil {
+		t.Errorf("expected AccountAlias nil, got %v", acct.AccountAlias)
+	}
+	if acct.Parent.IsMultiplex != false {
+		t.Errorf("expected Parent.IsMultiplex false, got %v", acct.Parent.IsMultiplex)
+	}
+}
 
 func TestStocks(t *testing.T) {
 	c := New("")

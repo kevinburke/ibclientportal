@@ -102,6 +102,104 @@ var historyMarketDataResponse = []byte(`
 }
 `)
 
+var ordersResponse = []byte(`
+{
+  "orders": [
+    {
+      "acct": "U1234567",
+      "conidex": "265598",
+      "conid": 265598,
+      "account": "U1234567",
+      "orderId": 1234568790,
+      "cashCcy": "USD",
+      "sizeAndFills": "5",
+      "orderDesc": "Sold 5 Market, GTC",
+      "description1": "AAPL",
+      "ticker": "AAPL",
+      "secType": "STK",
+      "listingExchange": "NASDAQ.NMS",
+      "remainingQuantity": 0.0,
+      "filledQuantity": 5.0,
+      "totalSize": 5.0,
+      "companyName": "APPLE INC",
+      "status": "Filled",
+      "order_ccp_status": "Filled",
+      "avgPrice": "192.26",
+      "origOrderType": "MARKET",
+      "supportsTaxOpt": "1",
+      "lastExecutionTime": "231211180049",
+      "orderType": "Market",
+      "bgColor": "#FFFFFF",
+      "fgColor": "#000000",
+      "order_ref": "Order123",
+      "timeInForce": "GTC",
+      "lastExecutionTime_r": 1702317649000,
+      "side": "SELL"
+    }
+  ],
+  "snapshot": true
+}
+`)
+
+var positionsResponse = []byte(`
+[
+  {
+    "position": 12.0,
+    "conid": "9408",
+    "avgCost": 266.20888333333335,
+    "avgPrice": 266.20888333333335,
+    "currency": "USD",
+    "description": "MCD",
+    "isLastToLoq": false,
+    "marketPrice": 258.8299865722656,
+    "marketValue": 3105.9598388671875,
+    "realizedPnl": 0.0,
+    "secType": "STK",
+    "timestamp": 1717444668,
+    "unrealizedPnl": 88.54676113281266,
+    "assetClass": "STK",
+    "sector": "Consumer, Cyclical",
+    "group": "Retail",
+    "model": ""
+  }
+]
+`)
+
+var accountsResponse = []byte(`
+[
+  {
+    "id": "U1234567",
+    "PrepaidCrypto-Z": false,
+    "PrepaidCrypto-P": false,
+    "brokerageAccess": true,
+    "accountId": "U1234567",
+    "accountVan": "U1234567",
+    "accountTitle": "",
+    "displayName": "U1234567",
+    "accountAlias": null,
+    "accountStatus": 1644814800000,
+    "currency": "USD",
+    "type": "DEMO",
+    "tradingType": "PMRGN",
+    "businessType": "IB_PROSERVE",
+    "ibEntity": "IBLLC-US",
+    "faclient": false,
+    "clearingStatus": "O",
+    "covestor": false,
+    "noClientTrading": false,
+    "trackVirtualFXPortfolio": true,
+    "parent": {
+      "mmc": [],
+      "accountId": "",
+      "isMParent": false,
+      "isMChild": false,
+      "isMultiplex": false
+    },
+    "desc": "U1234567"
+  }
+]
+`)
+
 var tickleResponse = []byte(`
 {
     "session": "1ac9c9827aefe7ebe7a97de2afa8a51a",

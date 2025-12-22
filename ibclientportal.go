@@ -21,9 +21,11 @@ type Client struct {
 	*restclient.Client
 	insecureSkipVerify bool
 
-	SecurityDefinitions *SecurityDefinitionService
 	Contracts           *ContractService
 	MarketData          *MarketDataService
+	Orders              *OrdersService
+	Portfolio           *PortfolioService
+	SecurityDefinitions *SecurityDefinitionService
 }
 
 // The ibclientportal version. Run "make release" to bump this number.
@@ -239,6 +241,163 @@ func (m *MarketDataHistoryData) Day() Day {
 	return Day{m.Time.Year(), m.Time.Month(), m.Time.Day()}
 }
 
+type PortfolioService struct {
+	client *Client
+}
+
+// AccountParent contains information about the parent account relationship.
+type AccountParent struct {
+	MMC         []string `json:"mmc"`
+	AccountID   string   `json:"accountId"`
+	IsMParent   bool     `json:"isMParent"`
+	IsMChild    bool     `json:"isMChild"`
+	IsMultiplex bool     `json:"isMultiplex"`
+}
+
+// Account represents an Interactive Brokers account.
+type Account struct {
+	ID                      string        `json:"id"`
+	AccountID               string        `json:"accountId"`
+	AccountVan              string        `json:"accountVan"`
+	AccountTitle            string        `json:"accountTitle"`
+	DisplayName             string        `json:"displayName"`
+	AccountAlias            *string       `json:"accountAlias"`
+	AccountStatus           int64         `json:"accountStatus"`
+	Currency                string        `json:"currency"`
+	Type                    string        `json:"type"`
+	TradingType             string        `json:"tradingType"`
+	BusinessType            string        `json:"businessType"`
+	IBEntity                string        `json:"ibEntity"`
+	FAClient                bool          `json:"faclient"`
+	ClearingStatus          string        `json:"clearingStatus"`
+	Covestor                bool          `json:"covestor"`
+	NoClientTrading         bool          `json:"noClientTrading"`
+	TrackVirtualFXPortfolio bool          `json:"trackVirtualFXPortfolio"`
+	Parent                  AccountParent `json:"parent"`
+	Desc                    string        `json:"desc"`
+	BrokerageAccess         bool          `json:"brokerageAccess"`
+}
+
+// ListAccounts returns all accounts associated with the current session.
+func (p *PortfolioService) ListAccounts(ctx context.Context) ([]Account, error) {
+	path := "/portfolio/accounts"
+	var val []Account
+	err := p.client.ListResource(ctx, path, nil, &val)
+	return val, err
+}
+
+// Position represents a position in an Interactive Brokers account.
+type Position struct {
+	Position      float64 `json:"position"`
+	ContractID    int64   `json:"conid,string"`
+	AvgCost       float64 `json:"avgCost"`
+	AvgPrice      float64 `json:"avgPrice"`
+	Currency      string  `json:"currency"`
+	Description   string  `json:"description"`
+	IsLastToLiq   bool    `json:"isLastToLoq"`
+	MarketPrice   float64 `json:"marketPrice"`
+	MarketValue   float64 `json:"marketValue"`
+	RealizedPnL   float64 `json:"realizedPnl"`
+	UnrealizedPnL float64 `json:"unrealizedPnl"`
+	SecType       string  `json:"secType"`
+	Timestamp     int64   `json:"timestamp"`
+	AssetClass    string  `json:"assetClass"`
+	Sector        string  `json:"sector"`
+	Group         string  `json:"group"`
+	Model         string  `json:"model"`
+}
+
+// ListPositions returns positions for the given account.
+// ListAccounts must be called prior to this endpoint.
+// Query parameters: model, sort, direction (a=ascending, d=descending).
+func (p *PortfolioService) ListPositions(ctx context.Context, accountID string, query url.Values) ([]Position, error) {
+	path := "/portfolio2/" + accountID + "/positions"
+	var val []Position
+	err := p.client.ListResource(ctx, path, query, &val)
+	return val, err
+}
+
+type OrdersService struct {
+	client *Client
+}
+
+// Order represents a live order in an Interactive Brokers account.
+type Order struct {
+	Account            string  `json:"acct"`
+	AccountID          string  `json:"account"`
+	ConIDEx            string  `json:"conidex"`
+	ContractID         int64   `json:"conid"`
+	OrderID            int64   `json:"orderId"`
+	CashCurrency       string  `json:"cashCcy"`
+	SizeAndFills       string  `json:"sizeAndFills"`
+	OrderDesc          string  `json:"orderDesc"`
+	Description1       string  `json:"description1"`
+	Ticker             string  `json:"ticker"`
+	SecType            string  `json:"secType"`
+	ListingExchange    string  `json:"listingExchange"`
+	RemainingQuantity  float64 `json:"remainingQuantity"`
+	FilledQuantity     float64 `json:"filledQuantity"`
+	TotalSize          float64 `json:"totalSize"`
+	CompanyName        string  `json:"companyName"`
+	Status             string  `json:"status"`
+	OrderCCPStatus     string  `json:"order_ccp_status"`
+	AvgPrice           string  `json:"avgPrice"`
+	OrigOrderType      string  `json:"origOrderType"`
+	SupportsTaxOpt     string  `json:"supportsTaxOpt"`
+	LastExecutionTime  string  `json:"lastExecutionTime"`
+	OrderType          string  `json:"orderType"`
+	BGColor            string  `json:"bgColor"`
+	FGColor            string  `json:"fgColor"`
+	OrderRef           string  `json:"order_ref"`
+	TimeInForce        string  `json:"timeInForce"`
+	LastExecutionTimeR int64   `json:"lastExecutionTime_r"`
+	Side               string  `json:"side"`
+}
+
+// OrdersResponse is the response from the orders endpoint.
+type OrdersResponse struct {
+	Orders   []Order `json:"orders"`
+	Snapshot bool    `json:"snapshot"`
+}
+
+// SwitchAccountResponse is the response from switching accounts.
+type SwitchAccountResponse struct {
+	Set       bool   `json:"set"`
+	AccountID string `json:"acctId"`
+}
+
+// SwitchAccount switches the active account for the session.
+// This must be called before certain endpoints like ListOrders.
+func (o *OrdersService) SwitchAccount(ctx context.Context, accountID string) (SwitchAccountResponse, error) {
+	path := "/iserver/account"
+	body := struct {
+		AccountID string `json:"acctId"`
+	}{AccountID: accountID}
+	var val SwitchAccountResponse
+	err := o.client.UpdateResource(ctx, path, body, &val)
+	return val, err
+}
+
+// ListOrders returns live orders for the current session.
+// SwitchAccount should be called first to select the appropriate account.
+// Query parameters: filters (comma-separated status values), force (bool).
+func (o *OrdersService) ListOrders(ctx context.Context, query url.Values) (OrdersResponse, error) {
+	path := "/iserver/account/orders"
+	var val OrdersResponse
+	err := o.client.ListResource(ctx, path, query, &val)
+	return val, err
+}
+
+// ListOrdersForAccount switches to the specified account and then returns its live orders.
+// This is a convenience method that calls SwitchAccount followed by ListOrders.
+func (o *OrdersService) ListOrdersForAccount(ctx context.Context, accountID string, query url.Values) (OrdersResponse, error) {
+	_, err := o.SwitchAccount(ctx, accountID)
+	if err != nil {
+		return OrdersResponse{}, fmt.Errorf("switching to account %s: %w", accountID, err)
+	}
+	return o.ListOrders(ctx, query)
+}
+
 const DefaultHost = "https://localhost:5000"
 
 func New(host string) *Client {
@@ -253,6 +412,8 @@ func New(host string) *Client {
 
 	c.Contracts = &ContractService{c}
 	c.MarketData = &MarketDataService{c}
+	c.Orders = &OrdersService{c}
+	c.Portfolio = &PortfolioService{c}
 	c.SecurityDefinitions = &SecurityDefinitionService{c}
 	return c
 }
