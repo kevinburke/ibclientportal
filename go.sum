@@ -1,2 +1,4 @@
 github.com/kevinburke/rest v0.0.0-20250718180114-1a15e4f2364f h1:y+inhBsY0ewgXFXCXlxodNxkXdYeU9YuneCYQEnRkmw=
 github.com/kevinburke/rest v0.0.0-20250718180114-1a15e4f2364f/go.mod h1:3cBF15uOiTj025Ll5QHLw317EB+e06+AEwyt7oHUubI=
+golang.org/x/time v0.14.0 h1:MRx4UaLrDotUKUdCIqzPC48t1Y9hANFKIRpNx+Te8PI=
+golang.org/x/time v0.14.0/go.mod h1:eL/Oa2bBBK0TkX57Fyni+NgnyQQN4LitPmob2Hjnqw4=

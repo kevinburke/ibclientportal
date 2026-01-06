@@ -11,6 +11,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/kevinburke/rest/restclient"
@@ -21,6 +22,9 @@ import (
 type Client struct {
 	*restclient.Client
 	insecureSkipVerify bool
+	rateLimiter        *RateLimiter
+	selectedAccountMu  sync.RWMutex
+	selectedAccount    string
 
 	Contracts           *ContractService
 	MarketData          *MarketDataService
@@ -37,6 +41,17 @@ const userAgent = "ibclientportal-go/" + Version
 func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, requestBody interface{}, resp interface{}) error {
 	if c == nil {
 		panic("nil client")
+	}
+	var release func()
+	if c.rateLimiter != nil {
+		r, err := c.rateLimiter.Wait(ctx, method, pathPart, c.SelectedAccount())
+		if err != nil {
+			return err
+		}
+		release = r
+		if release != nil {
+			defer release()
+		}
 	}
 	var rb io.Reader = nil
 	if requestBody != nil && (method == "POST" || method == "PUT") {
@@ -359,6 +374,9 @@ func (o *OrdersService) ListTradableAccounts(ctx context.Context) (TradableAccou
 	path := "/iserver/accounts"
 	var val TradableAccountsResponse
 	err := o.client.ListResource(ctx, path, nil, &val)
+	if err == nil && val.SelectedAccount != "" {
+		o.client.setSelectedAccount(val.SelectedAccount)
+	}
 	return val, err
 }
 
@@ -420,6 +438,9 @@ func (o *OrdersService) SwitchAccount(ctx context.Context, accountID string) (Sw
 	}{AccountID: accountID}
 	var val SwitchAccountResponse
 	err := o.client.UpdateResource(ctx, path, body, &val)
+	if err == nil {
+		o.client.setSelectedAccount(accountID)
+	}
 	return val, err
 }
 
@@ -541,4 +562,20 @@ func (c *Client) SetInsecureSkipVerify() {
 		panic(fmt.Sprintf("unknown transport set on restclient.Transport: %#v", rct.RoundTripper))
 	}
 	setInsecure(tr)
+}
+
+// SelectedAccount returns the currently selected account ID (if known).
+func (c *Client) SelectedAccount() string {
+	c.selectedAccountMu.RLock()
+	defer c.selectedAccountMu.RUnlock()
+	return c.selectedAccount
+}
+
+func (c *Client) setSelectedAccount(accountID string) {
+	if accountID == "" {
+		return
+	}
+	c.selectedAccountMu.Lock()
+	c.selectedAccount = accountID
+	c.selectedAccountMu.Unlock()
 }
