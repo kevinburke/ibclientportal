@@ -34,7 +34,7 @@ type Client struct {
 }
 
 // The ibclientportal version. Run "make release" to bump this number.
-const Version = "0.2.0"
+const Version = "0.3.0"
 
 const userAgent = "ibclientportal-go/" + Version
 
