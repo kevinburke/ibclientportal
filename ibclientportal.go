@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strconv"
 	"time"
@@ -92,6 +93,27 @@ func (c *Client) Tickle(ctx context.Context, data url.Values) (TickleResponse, e
 	path := "/tickle"
 	var val TickleResponse
 	err := c.UpdateResource(ctx, path, data, &val)
+	return val, err
+}
+
+// AuthStatusResponse is the response from /iserver/auth/status.
+type AuthStatusResponse struct {
+	Authenticated bool              `json:"authenticated"`
+	Competing     bool              `json:"competing"`
+	Connected     bool              `json:"connected"`
+	Message       string            `json:"message"`
+	MAC           string            `json:"MAC"`
+	ServerInfo    map[string]string `json:"serverInfo"`
+	HardwareInfo  string            `json:"hardware_info"`
+	Fail          string            `json:"fail"`
+}
+
+// AuthStatus returns the current brokerage session authentication status.
+// Market Data and Trading is not possible if not authenticated.
+func (c *Client) AuthStatus(ctx context.Context) (AuthStatusResponse, error) {
+	path := "/iserver/auth/status"
+	var val AuthStatusResponse
+	err := c.UpdateResource(ctx, path, nil, &val)
 	return val, err
 }
 
@@ -321,6 +343,25 @@ type OrdersService struct {
 	client *Client
 }
 
+// TradableAccountsResponse is the response from /iserver/accounts.
+type TradableAccountsResponse struct {
+	Accounts        []string               `json:"accounts"`
+	AcctProps       map[string]interface{} `json:"acctProps"`
+	Aliases         map[string]string      `json:"aliases"`
+	SelectedAccount string                 `json:"selectedAccount"`
+	IsFT            bool                   `json:"isFt"`
+	IsPaper         bool                   `json:"isPaper"`
+}
+
+// ListTradableAccounts returns a list of accounts the user has trading access to.
+// Note: this endpoint must be called before modifying an order or querying open orders/trades.
+func (o *OrdersService) ListTradableAccounts(ctx context.Context) (TradableAccountsResponse, error) {
+	path := "/iserver/accounts"
+	var val TradableAccountsResponse
+	err := o.client.ListResource(ctx, path, nil, &val)
+	return val, err
+}
+
 // Order represents a live order in an Interactive Brokers account.
 type Order struct {
 	Account            string  `json:"acct"`
@@ -369,6 +410,10 @@ type SwitchAccountResponse struct {
 // SwitchAccount switches the active account for the session.
 // This must be called before certain endpoints like ListOrders.
 func (o *OrdersService) SwitchAccount(ctx context.Context, accountID string) (SwitchAccountResponse, error) {
+	// Clear existing session cookies to prevent accumulation
+	// (the API sets a new x-sess-uuid on each response)
+	o.client.clearSessionCookies()
+
 	path := "/iserver/account"
 	body := struct {
 		AccountID string `json:"acctId"`
@@ -398,6 +443,51 @@ func (o *OrdersService) ListOrdersForAccount(ctx context.Context, accountID stri
 	return o.ListOrders(ctx, query)
 }
 
+// Trade represents a completed trade/execution in an Interactive Brokers account.
+type Trade struct {
+	ExecutionID           string  `json:"execution_id"`
+	Symbol                string  `json:"symbol"`
+	SupportsTaxOpt        string  `json:"supports_tax_opt"`
+	Side                  string  `json:"side"` // "B" or "S"
+	OrderDescription      string  `json:"order_description"`
+	TradeTime             string  `json:"trade_time"` // YYYYMMDD-hh:mm:ss UTC
+	TradeTimeR            int64   `json:"trade_time_r"`
+	Size                  float64 `json:"size"`
+	Price                 string  `json:"price"`
+	OrderRef              string  `json:"order_ref"`
+	Submitter             string  `json:"submitter"`
+	Exchange              string  `json:"exchange"`
+	Commission            string  `json:"commission"`
+	NetAmount             float64 `json:"net_amount"`
+	Account               string  `json:"account"`
+	AccountCode           string  `json:"accountCode"`
+	AccountAllocationName string  `json:"account_allocation_name"`
+	CompanyName           string  `json:"company_name"`
+	ContractDescription1  string  `json:"contract_description_1"`
+	SecType               string  `json:"sec_type"`
+	ListingExchange       string  `json:"listing_exchange"`
+	ContractID            int64   `json:"conid"`
+	ContractIDEx          string  `json:"conidEx"`
+	ClearingID            string  `json:"clearing_id"`
+	ClearingName          string  `json:"clearing_name"`
+	LiquidationTrade      string  `json:"liquidation_trade"`
+	IsEventTrading        string  `json:"is_event_trading"`
+	OrderID               float64 `json:"order_id"`
+}
+
+// ListTrades returns trades/executions for the current session.
+// Query parameters: days (int, 1-7, default 1 for current day only).
+func (o *OrdersService) ListTrades(ctx context.Context, query url.Values) ([]Trade, error) {
+	// Clear session cookies - the trades endpoint returns empty results
+	// if stale session cookies from other API calls are present
+	o.client.clearSessionCookies()
+
+	path := "/iserver/account/trades"
+	var val []Trade
+	err := o.client.ListResource(ctx, path, query, &val)
+	return val, err
+}
+
 const DefaultHost = "https://localhost:5000"
 
 func New(host string) *Client {
@@ -406,6 +496,12 @@ func New(host string) *Client {
 	}
 	rc := restclient.New("", "", host+"/v1/api")
 	rc.UploadType = restclient.JSON
+
+	// Create a cookie jar to persist session cookies across requests
+	// (required for account switching to work properly)
+	jar, _ := cookiejar.New(nil)
+	rc.Client.Jar = jar
+
 	c := &Client{
 		Client: rc,
 	}
@@ -420,6 +516,13 @@ func New(host string) *Client {
 
 func setInsecure(tr *http.Transport) {
 	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+}
+
+// clearSessionCookies replaces the cookie jar with a fresh one to prevent
+// accumulation of session cookies across requests.
+func (c *Client) clearSessionCookies() {
+	jar, _ := cookiejar.New(nil)
+	c.Client.Client.Jar = jar
 }
 
 func (c *Client) SetInsecureSkipVerify() {

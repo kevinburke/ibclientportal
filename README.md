@@ -45,3 +45,12 @@ func main() {
 	// ...
 }
 ```
+
+## Testing
+
+Some tests exercise live endpoints. To override the default host used in tests,
+set `IBCLIENTPORTAL_TEST_HOST`:
+
+```sh
+IBCLIENTPORTAL_TEST_HOST=https://localhost:5000 go test -run TestStocks
+```

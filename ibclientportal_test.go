@@ -3,11 +3,18 @@ package ibclientportal
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 )
+
+func testHost() string {
+	if host := os.Getenv("IBCLIENTPORTAL_TEST_HOST"); host != "" {
+		return host
+	}
+	return ""
+}
 
 func TestOrdersParsing(t *testing.T) {
 	var resp OrdersResponse
@@ -136,7 +143,7 @@ func TestAccountsParsing(t *testing.T) {
 }
 
 func TestStocks(t *testing.T) {
-	c := New("")
+	c := New(testHost())
 	c.SetInsecureSkipVerify()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -174,7 +181,7 @@ func TestStocks(t *testing.T) {
 }
 
 func TestMarketData(t *testing.T) {
-	c := New("")
+	c := New(testHost())
 	c.SetInsecureSkipVerify()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -185,14 +192,22 @@ func TestMarketData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("hist: %#v\n", hist)
-	fmt.Println(hist.Data[0].Day())
-	fmt.Println(hist.Data[0].Time)
-	t.Fail()
+	if hist == nil {
+		t.Fatal("expected market data response, got nil")
+	}
+	if hist.Symbol == "" {
+		t.Fatalf("expected symbol in response: %#v", hist)
+	}
+	if len(hist.Data) == 0 {
+		t.Fatalf("expected market data points: %#v", hist)
+	}
+	if hist.Data[0].Time.IsZero() {
+		t.Fatalf("expected non-zero data time: %#v", hist.Data[0])
+	}
 }
 
 func TestSearch(t *testing.T) {
-	c := New("")
+	c := New(testHost())
 	c.SetInsecureSkipVerify()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -202,12 +217,16 @@ func TestSearch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("hist: %#v\n", hist)
-	t.Fail()
+	if len(hist) == 0 {
+		t.Fatalf("expected search results, got %#v", hist)
+	}
+	if hist[0].ContractID == 0 {
+		t.Fatalf("expected contract id in search result: %#v", hist[0])
+	}
 }
 
 func TestTickle(t *testing.T) {
-	c := New("")
+	c := New(testHost())
 	c.SetInsecureSkipVerify()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -215,6 +234,10 @@ func TestTickle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("resp: %#v\n", resp)
-	t.Fail()
+	if resp.Session == "" {
+		t.Fatalf("expected session in response: %#v", resp)
+	}
+	if resp.SSOExpires <= 0 {
+		t.Fatalf("expected sso expires in response: %#v", resp)
+	}
 }
