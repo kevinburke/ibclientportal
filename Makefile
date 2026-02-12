@@ -3,6 +3,10 @@ test:
 	go vet ./...
 	go test -trimpath ./...
 
+coverage:
+	go test -trimpath -short -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out
+
 release:
 	bump_version --tag-prefix=v minor ibclientportal.go
 

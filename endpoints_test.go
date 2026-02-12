@@ -198,6 +198,69 @@ func TestSwitchAccountClearsCookies(t *testing.T) {
 	}
 }
 
+func TestListTransactionsEndpoint(t *testing.T) {
+	infoCh := make(chan requestInfo, 1)
+	client, server := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		infoCh <- requestInfo{
+			method: r.Method,
+			path:   r.URL.Path,
+			query:  r.URL.RawQuery,
+			cookie: r.Header.Get("Cookie"),
+			body:   string(body),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(transactionsResponse)
+	})
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	resp, err := client.PerformanceAnalytics.ListTransactions(ctx, TransactionsRequest{
+		AcctIDs:  []string{"U1234567"},
+		Conids:   []int64{265598},
+		Currency: "USD",
+		Days:     30,
+	})
+	if err != nil {
+		t.Fatalf("list transactions: %v", err)
+	}
+	if resp.Currency != "USD" {
+		t.Errorf("expected Currency USD, got %s", resp.Currency)
+	}
+	if len(resp.Transactions) != 2 {
+		t.Fatalf("expected 2 transactions, got %d", len(resp.Transactions))
+	}
+
+	select {
+	case info := <-infoCh:
+		if info.method != http.MethodPost {
+			t.Errorf("expected POST, got %s", info.method)
+		}
+		if info.path != "/v1/api/pa/transactions" {
+			t.Errorf("unexpected path: %s", info.path)
+		}
+		var payload TransactionsRequest
+		if err := json.Unmarshal([]byte(info.body), &payload); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		if len(payload.AcctIDs) != 1 || payload.AcctIDs[0] != "U1234567" {
+			t.Errorf("unexpected acctIds: %v", payload.AcctIDs)
+		}
+		if len(payload.Conids) != 1 || payload.Conids[0] != 265598 {
+			t.Errorf("unexpected conids: %v", payload.Conids)
+		}
+		if payload.Currency != "USD" {
+			t.Errorf("unexpected currency: %q", payload.Currency)
+		}
+		if payload.Days != 30 {
+			t.Errorf("unexpected days: %d", payload.Days)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for request")
+	}
+}
+
 func TestListTradesEndpointClearsCookies(t *testing.T) {
 	infoCh := make(chan requestInfo, 1)
 	client, server := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {

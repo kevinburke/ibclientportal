@@ -165,6 +165,47 @@ var positionsResponse = []byte(`
 ]
 `)
 
+var transactionsResponse = []byte(`
+{
+  "currency": "USD",
+  "from": 1700000000000,
+  "id": "txn-123",
+  "includesRealTime": true,
+  "to": 1700100000000,
+  "warning": "",
+  "transactions": [
+    {
+      "date": "2024-01-15 10:30:00",
+      "rawDate": "20240115",
+      "cur": "USD",
+      "fxRate": 1.0,
+      "pr": 150.25,
+      "qty": 10,
+      "acctid": "U1234567",
+      "amt": -1502.50,
+      "conid": 265598,
+      "type": "B",
+      "desc": "AAPL Buy",
+      "symbol": "AAPL"
+    },
+    {
+      "date": "2024-01-16 14:00:00",
+      "rawDate": "20240116",
+      "cur": "USD",
+      "fxRate": 1.0,
+      "pr": 155.00,
+      "qty": -5,
+      "acctid": "U1234567",
+      "amt": 775.00,
+      "conid": 265598,
+      "type": "S",
+      "desc": "AAPL Sell",
+      "symbol": "AAPL"
+    }
+  ]
+}
+`)
+
 var accountsResponse = []byte(`
 [
   {

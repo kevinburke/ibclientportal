@@ -101,6 +101,60 @@ func TestPositionsParsing(t *testing.T) {
 	}
 }
 
+func TestTransactionsParsing(t *testing.T) {
+	var resp TransactionsResponse
+	if err := json.Unmarshal(transactionsResponse, &resp); err != nil {
+		t.Fatalf("failed to parse transactions response: %v", err)
+	}
+	if resp.Currency != "USD" {
+		t.Errorf("expected Currency USD, got %s", resp.Currency)
+	}
+	if resp.From != 1700000000000 {
+		t.Errorf("expected From 1700000000000, got %d", resp.From)
+	}
+	if resp.To != 1700100000000 {
+		t.Errorf("expected To 1700100000000, got %d", resp.To)
+	}
+	if resp.ID != "txn-123" {
+		t.Errorf("expected ID txn-123, got %s", resp.ID)
+	}
+	if !resp.IncludesRealTime {
+		t.Errorf("expected IncludesRealTime true, got false")
+	}
+	if len(resp.Transactions) != 2 {
+		t.Fatalf("expected 2 transactions, got %d", len(resp.Transactions))
+	}
+	buy := resp.Transactions[0]
+	if buy.Symbol != "AAPL" {
+		t.Errorf("expected Symbol AAPL, got %s", buy.Symbol)
+	}
+	if buy.Quantity != 10 {
+		t.Errorf("expected Quantity 10, got %f", buy.Quantity)
+	}
+	if buy.Price != 150.25 {
+		t.Errorf("expected Price 150.25, got %f", buy.Price)
+	}
+	if buy.Amount != -1502.50 {
+		t.Errorf("expected Amount -1502.50, got %f", buy.Amount)
+	}
+	if buy.ContractID != 265598 {
+		t.Errorf("expected ContractID 265598, got %d", buy.ContractID)
+	}
+	if buy.AccountID != "U1234567" {
+		t.Errorf("expected AccountID U1234567, got %s", buy.AccountID)
+	}
+	if buy.RawDate != "20240115" {
+		t.Errorf("expected RawDate 20240115, got %s", buy.RawDate)
+	}
+	sell := resp.Transactions[1]
+	if sell.Quantity != -5 {
+		t.Errorf("expected Quantity -5, got %f", sell.Quantity)
+	}
+	if sell.Amount != 775.00 {
+		t.Errorf("expected Amount 775.00, got %f", sell.Amount)
+	}
+}
+
 func TestAccountsParsing(t *testing.T) {
 	var accounts []Account
 	if err := json.Unmarshal(accountsResponse, &accounts); err != nil {
@@ -142,7 +196,97 @@ func TestAccountsParsing(t *testing.T) {
 	}
 }
 
+func TestStocksParsing(t *testing.T) {
+	var resp ContractStocksResponse
+	if err := json.Unmarshal(stocksResponse, &resp); err != nil {
+		t.Fatalf("failed to parse stocks response: %v", err)
+	}
+	voo, ok := resp["VOO"]
+	if !ok {
+		t.Fatalf("expected VOO key in response: %#v", resp)
+	}
+	if len(voo) != 1 {
+		t.Fatalf("expected 1 VOO entry, got %d", len(voo))
+	}
+	if voo[0].Name != "VANGUARD S&P 500 ETF" {
+		t.Errorf("expected Name VANGUARD S&P 500 ETF, got %s", voo[0].Name)
+	}
+	if len(voo[0].Contracts) != 2 {
+		t.Fatalf("expected 2 contracts, got %d", len(voo[0].Contracts))
+	}
+	if voo[0].Contracts[1].ContractID != 136155102 {
+		t.Errorf("expected ContractID 136155102, got %d", voo[0].Contracts[1].ContractID)
+	}
+	if !voo[0].Contracts[1].IsUS {
+		t.Errorf("expected IsUS true for ARCA contract")
+	}
+	vt, ok := resp["VT"]
+	if !ok {
+		t.Fatalf("expected VT key in response: %#v", resp)
+	}
+	if len(vt) != 1 || vt[0].Name != "VANGUARD TOT WORLD STK ETF" {
+		t.Errorf("unexpected VT entry: %#v", vt)
+	}
+}
+
+func TestMarketDataHistoryParsing(t *testing.T) {
+	var resp MarketDataHistoryResponse
+	if err := json.Unmarshal(historyMarketDataResponse, &resp); err != nil {
+		t.Fatalf("failed to parse market data history response: %v", err)
+	}
+	if resp.Symbol != "VOO" {
+		t.Errorf("expected Symbol VOO, got %s", resp.Symbol)
+	}
+	if resp.Text != "VANGUARD S&P 500 ETF" {
+		t.Errorf("expected Text VANGUARD S&P 500 ETF, got %s", resp.Text)
+	}
+	if resp.TimePeriod != "10d" {
+		t.Errorf("expected TimePeriod 10d, got %s", resp.TimePeriod)
+	}
+	if len(resp.Data) != 9 {
+		t.Fatalf("expected 9 data points, got %d", len(resp.Data))
+	}
+	d := resp.Data[0]
+	if d.Open != 349.79 {
+		t.Errorf("expected Open 349.79, got %f", d.Open)
+	}
+	if d.Close != 351.34 {
+		t.Errorf("expected Close 351.34, got %f", d.Close)
+	}
+	if d.Volume != 37283 {
+		t.Errorf("expected Volume 37283, got %f", d.Volume)
+	}
+	if d.Time.IsZero() {
+		t.Errorf("expected non-zero time")
+	}
+}
+
+func TestTickleParsing(t *testing.T) {
+	var resp TickleResponse
+	if err := json.Unmarshal(tickleResponse, &resp); err != nil {
+		t.Fatalf("failed to parse tickle response: %v", err)
+	}
+	if resp.Session != "1ac9c9827aefe7ebe7a97de2afa8a51a" {
+		t.Errorf("expected session 1ac9c9827aefe7ebe7a97de2afa8a51a, got %s", resp.Session)
+	}
+	if resp.SSOExpires != 228977 {
+		t.Errorf("expected SSOExpires 228977, got %d", resp.SSOExpires)
+	}
+	if resp.UserID != 81619164 {
+		t.Errorf("expected UserID 81619164, got %d", resp.UserID)
+	}
+	if resp.IServer.AuthStatus.Connected != true {
+		t.Errorf("expected Connected true, got false")
+	}
+	if resp.IServer.AuthStatus.Authenticated != false {
+		t.Errorf("expected Authenticated false, got true")
+	}
+}
+
 func TestStocks(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	c := New(testHost())
 	c.SetInsecureSkipVerify()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -181,6 +325,9 @@ func TestStocks(t *testing.T) {
 }
 
 func TestMarketData(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	c := New(testHost())
 	c.SetInsecureSkipVerify()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -207,6 +354,9 @@ func TestMarketData(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	c := New(testHost())
 	c.SetInsecureSkipVerify()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -226,6 +376,9 @@ func TestSearch(t *testing.T) {
 }
 
 func TestTickle(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	c := New(testHost())
 	c.SetInsecureSkipVerify()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

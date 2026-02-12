@@ -21,16 +21,16 @@ import (
 // https://www.interactivebrokers.com/api/doc.html#tag/Contract/paths/~1trsrv~1futures/get
 type Client struct {
 	*restclient.Client
-	insecureSkipVerify bool
-	rateLimiter        *RateLimiter
+	rateLimiter *RateLimiter
 	selectedAccountMu  sync.RWMutex
 	selectedAccount    string
 
-	Contracts           *ContractService
-	MarketData          *MarketDataService
-	Orders              *OrdersService
-	Portfolio           *PortfolioService
-	SecurityDefinitions *SecurityDefinitionService
+	Contracts            *ContractService
+	MarketData           *MarketDataService
+	Orders               *OrdersService
+	PerformanceAnalytics *PerformanceAnalyticsService
+	Portfolio            *PortfolioService
+	SecurityDefinitions  *SecurityDefinitionService
 }
 
 // The ibclientportal version. Run "make release" to bump this number.
@@ -276,6 +276,55 @@ type Day struct {
 
 func (m *MarketDataHistoryData) Day() Day {
 	return Day{m.Time.Year(), m.Time.Month(), m.Time.Day()}
+}
+
+// PerformanceAnalyticsService provides access to the /pa/ endpoints.
+type PerformanceAnalyticsService struct {
+	client *Client
+}
+
+// TransactionsRequest is the request body for /pa/transactions.
+type TransactionsRequest struct {
+	AcctIDs  []string `json:"acctIds"`
+	Conids   []int64  `json:"conids"`
+	Currency string   `json:"currency,omitempty"`
+	Days     int      `json:"days,omitempty"`
+}
+
+// TransactionsResponse is the response from /pa/transactions.
+type TransactionsResponse struct {
+	Currency         string              `json:"currency"`
+	From             int64               `json:"from"`
+	ID               string              `json:"id"`
+	IncludesRealTime bool                `json:"includesRealTime"`
+	To               int64               `json:"to"`
+	Warning          string              `json:"warning"`
+	Transactions     []TransactionRecord `json:"transactions"`
+}
+
+// TransactionRecord is a single transaction in a TransactionsResponse.
+type TransactionRecord struct {
+	Date        string  `json:"date"`
+	RawDate     string  `json:"rawDate"`
+	Currency    string  `json:"cur"`
+	FXRate      float64 `json:"fxRate"`
+	Price       float64 `json:"pr"`
+	Quantity    float64 `json:"qty"`
+	AccountID   string  `json:"acctid"`
+	Amount      float64 `json:"amt"`
+	ContractID  int64   `json:"conid"`
+	Type        string  `json:"type"`
+	Description string  `json:"desc"`
+	Symbol      string  `json:"symbol,omitempty"`
+}
+
+// ListTransactions returns transaction history for the given accounts and
+// contract IDs. This endpoint uses POST but is read-only.
+func (p *PerformanceAnalyticsService) ListTransactions(ctx context.Context, req TransactionsRequest) (TransactionsResponse, error) {
+	path := "/pa/transactions"
+	var val TransactionsResponse
+	err := p.client.UpdateResource(ctx, path, req, &val)
+	return val, err
 }
 
 type PortfolioService struct {
@@ -530,6 +579,7 @@ func New(host string) *Client {
 	c.Contracts = &ContractService{c}
 	c.MarketData = &MarketDataService{c}
 	c.Orders = &OrdersService{c}
+	c.PerformanceAnalytics = &PerformanceAnalyticsService{c}
 	c.Portfolio = &PortfolioService{c}
 	c.SecurityDefinitions = &SecurityDefinitionService{c}
 	return c
