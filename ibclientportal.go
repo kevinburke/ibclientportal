@@ -21,9 +21,9 @@ import (
 // https://www.interactivebrokers.com/api/doc.html#tag/Contract/paths/~1trsrv~1futures/get
 type Client struct {
 	*restclient.Client
-	rateLimiter *RateLimiter
-	selectedAccountMu  sync.RWMutex
-	selectedAccount    string
+	rateLimiter       *RateLimiter
+	selectedAccountMu sync.RWMutex
+	selectedAccount   string
 
 	Contracts            *ContractService
 	MarketData           *MarketDataService
@@ -34,7 +34,7 @@ type Client struct {
 }
 
 // The ibclientportal version. Run "make release" to bump this number.
-const Version = "0.3.0"
+const Version = "0.4.0"
 
 const userAgent = "ibclientportal-go/" + Version
 
