@@ -1,5 +1,11 @@
 # History
 
+## 0.5.0 (February 27, 2026)
+
+- Add `Ledger` endpoint to `PortfolioService` (`/portfolio/{accountId}/ledger`)
+  with detailed API documentation for all `LedgerEntry` fields.
+- Support `IBCLIENTPORTAL_HOST` environment variable as a fallback in `New`.
+
 ## 0.4.0 (February 13, 2026)
 
 - Add `PerformanceAnalyticsService` with `ListTransactions` (`/pa/transactions`

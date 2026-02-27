@@ -155,6 +155,75 @@ func TestTransactionsParsing(t *testing.T) {
 	}
 }
 
+func TestLedgerParsing(t *testing.T) {
+	var resp LedgerResponse
+	if err := json.Unmarshal(ledgerResponse, &resp); err != nil {
+		t.Fatalf("failed to parse ledger response: %v", err)
+	}
+	if len(resp) != 2 {
+		t.Fatalf("expected 2 ledger entries, got %d", len(resp))
+	}
+	usd, ok := resp["USD"]
+	if !ok {
+		t.Fatalf("expected USD key in response: %#v", resp)
+	}
+	if usd.AccountCode != "U1234567" {
+		t.Errorf("expected AccountCode U1234567, got %s", usd.AccountCode)
+	}
+	if usd.CashBalance != 50000.50 {
+		t.Errorf("expected CashBalance 50000.50, got %f", usd.CashBalance)
+	}
+	if usd.Currency != "USD" {
+		t.Errorf("expected Currency USD, got %s", usd.Currency)
+	}
+	if usd.Dividends != 125.30 {
+		t.Errorf("expected Dividends 125.30, got %f", usd.Dividends)
+	}
+	if usd.ExchangeRate != 1 {
+		t.Errorf("expected ExchangeRate 1, got %f", usd.ExchangeRate)
+	}
+	if usd.Interest != 42.15 {
+		t.Errorf("expected Interest 42.15, got %f", usd.Interest)
+	}
+	if usd.Key != "LedgerList" {
+		t.Errorf("expected Key LedgerList, got %s", usd.Key)
+	}
+	if usd.NetLiquidationValue != 75250.75 {
+		t.Errorf("expected NetLiquidationValue 75250.75, got %f", usd.NetLiquidationValue)
+	}
+	if usd.RealizedPnL != 1500.00 {
+		t.Errorf("expected RealizedPnL 1500.00, got %f", usd.RealizedPnL)
+	}
+	if usd.SecondKey != "USD" {
+		t.Errorf("expected SecondKey USD, got %s", usd.SecondKey)
+	}
+	if usd.SettledCash != 49000.00 {
+		t.Errorf("expected SettledCash 49000.00, got %f", usd.SettledCash)
+	}
+	if usd.StockMarketValue != 25000.25 {
+		t.Errorf("expected StockMarketValue 25000.25, got %f", usd.StockMarketValue)
+	}
+	if usd.StockOptionMarketValue != 500.50 {
+		t.Errorf("expected StockOptionMarketValue 500.50, got %f", usd.StockOptionMarketValue)
+	}
+	if usd.Timestamp != 1717444668 {
+		t.Errorf("expected Timestamp 1717444668, got %d", usd.Timestamp)
+	}
+	if usd.UnrealizedPnL != 3200.00 {
+		t.Errorf("expected UnrealizedPnL 3200.00, got %f", usd.UnrealizedPnL)
+	}
+	base, ok := resp["BASE"]
+	if !ok {
+		t.Fatalf("expected BASE key in response: %#v", resp)
+	}
+	if base.Currency != "BASE" {
+		t.Errorf("expected Currency BASE, got %s", base.Currency)
+	}
+	if base.SecondKey != "BASE" {
+		t.Errorf("expected SecondKey BASE, got %s", base.SecondKey)
+	}
+}
+
 func TestAccountsParsing(t *testing.T) {
 	var accounts []Account
 	if err := json.Unmarshal(accountsResponse, &accounts); err != nil {

@@ -241,6 +241,61 @@ var accountsResponse = []byte(`
 ]
 `)
 
+var ledgerResponse = []byte(`
+{
+  "USD": {
+    "acctcode": "U1234567",
+    "cashbalance": 50000.50,
+    "cashbalancefxsegment": 0.0,
+    "commoditymarketvalue": 0.0,
+    "currency": "USD",
+    "dividends": 125.30,
+    "exchangerate": 1,
+    "funds": 0.0,
+    "futuremarketvalue": 0.0,
+    "interest": 42.15,
+    "key": "LedgerList",
+    "moneyfunds": 0.0,
+    "netliquidationvalue": 75250.75,
+    "realizedpnl": 1500.00,
+    "secondkey": "USD",
+    "settledcash": 49000.00,
+    "stockmarketvalue": 25000.25,
+    "stockoptionmarketvalue": 500.50,
+    "tbillsmarketvalue": 0.0,
+    "tbondsmarketvalue": 0.0,
+    "timestamp": 1717444668,
+    "unrealizedpnl": 3200.00,
+    "warrantsmarketvalue": 0.0
+  },
+  "BASE": {
+    "acctcode": "U1234567",
+    "cashbalance": 50000.50,
+    "cashbalancefxsegment": 0.0,
+    "commoditymarketvalue": 0.0,
+    "currency": "BASE",
+    "dividends": 125.30,
+    "exchangerate": 1,
+    "funds": 0.0,
+    "futuremarketvalue": 0.0,
+    "interest": 42.15,
+    "key": "LedgerList",
+    "moneyfunds": 0.0,
+    "netliquidationvalue": 75250.75,
+    "realizedpnl": 1500.00,
+    "secondkey": "BASE",
+    "settledcash": 49000.00,
+    "stockmarketvalue": 25000.25,
+    "stockoptionmarketvalue": 500.50,
+    "tbillsmarketvalue": 0.0,
+    "tbondsmarketvalue": 0.0,
+    "timestamp": 1717444668,
+    "unrealizedpnl": 3200.00,
+    "warrantsmarketvalue": 0.0
+  }
+}
+`)
+
 var tickleResponse = []byte(`
 {
     "session": "1ac9c9827aefe7ebe7a97de2afa8a51a",

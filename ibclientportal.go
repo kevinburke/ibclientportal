@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -403,6 +404,76 @@ func (p *PortfolioService) ListPositions(ctx context.Context, accountID string, 
 	return val, err
 }
 
+// LedgerEntry represents an account's balances in a single currency.
+// Each entry corresponds to one currency in the account (e.g. "USD", "AUD")
+// or "BASE" for the account's base currency.
+//
+// https://www.interactivebrokers.com/api/doc.html#tag/Trading-Portfolio/paths/~1portfolio~1%7BaccountId%7D~1ledger/get
+type LedgerEntry struct {
+	// AccountCode is the account ID.
+	AccountCode string `json:"acctcode"`
+	// CashBalance is the cash balance in this currency.
+	CashBalance float64 `json:"cashbalance"`
+	// CashBalanceFXSegment is the cash balance in the dedicated forex segment, if applicable.
+	CashBalanceFXSegment float64 `json:"cashbalancefxsegment"`
+	// CommodityMarketValue is the market value of commodity positions in this currency.
+	CommodityMarketValue float64 `json:"commoditymarketvalue"`
+	// Currency is the three-letter currency code, or "BASE" for the account's base currency.
+	Currency string `json:"currency"`
+	// Dividends is the receivable (not yet disbursed) dividend balance in this currency.
+	Dividends float64 `json:"dividends"`
+	// ExchangeRate is the exchange rate of this currency relative to the account's base currency.
+	ExchangeRate float64 `json:"exchangerate"`
+	// Funds is the value of mutual fund holdings in this currency.
+	Funds float64 `json:"funds"`
+	// FutureMarketValue is the market value of futures positions in this currency.
+	FutureMarketValue float64 `json:"futuremarketvalue"`
+	// Interest is the receivable interest balance in this currency.
+	Interest float64 `json:"interest"`
+	// Key identifies the nature of the data. Always "LedgerList".
+	Key string `json:"key"`
+	// MoneyFunds is the value of money market fund holdings in this currency.
+	MoneyFunds float64 `json:"moneyfunds"`
+	// NetLiquidationValue is the net liquidation value of positions in this currency.
+	NetLiquidationValue float64 `json:"netliquidationvalue"`
+	// RealizedPnL is the realized profit/loss for positions in this currency.
+	RealizedPnL float64 `json:"realizedpnl"`
+	// SecondKey is an additional currency identifier. Always matches the Currency field.
+	SecondKey string `json:"secondkey"`
+	// SettledCash is the settled cash balance in this currency.
+	SettledCash float64 `json:"settledcash"`
+	// StockMarketValue is the market value of stock positions in this currency.
+	StockMarketValue float64 `json:"stockmarketvalue"`
+	// StockOptionMarketValue is the market value of stock options positions in this currency.
+	StockOptionMarketValue float64 `json:"stockoptionmarketvalue"`
+	// TBillsMarketValue is the market value of treasury bill positions in this currency.
+	TBillsMarketValue float64 `json:"tbillsmarketvalue"`
+	// TBondsMarketValue is the market value of treasury bond positions in this currency.
+	TBondsMarketValue float64 `json:"tbondsmarketvalue"`
+	// Timestamp is the Unix timestamp when this ledger data was retrieved.
+	Timestamp int64 `json:"timestamp"`
+	// UnrealizedPnL is the unrealized profit/loss for positions in this currency.
+	UnrealizedPnL float64 `json:"unrealizedpnl"`
+	// WarrantsMarketValue is the market value of warrant positions in this currency.
+	WarrantsMarketValue float64 `json:"warrantsmarketvalue"`
+}
+
+// LedgerResponse maps currency names (e.g. "USD", "AUD", "BASE") to ledger
+// entries. The "BASE" key contains balances converted to the account's base
+// currency. Other keys contain balances in the named currency.
+type LedgerResponse map[string]*LedgerEntry
+
+// Ledger returns the given account's ledger data detailing its balances by
+// currency. ListAccounts must be called prior to this endpoint.
+//
+// https://www.interactivebrokers.com/api/doc.html#tag/Trading-Portfolio/paths/~1portfolio~1%7BaccountId%7D~1ledger/get
+func (p *PortfolioService) Ledger(ctx context.Context, accountID string) (LedgerResponse, error) {
+	path := "/portfolio/" + accountID + "/ledger"
+	var val LedgerResponse
+	err := p.client.ListResource(ctx, path, nil, &val)
+	return val, err
+}
+
 type OrdersService struct {
 	client *Client
 }
@@ -561,6 +632,9 @@ func (o *OrdersService) ListTrades(ctx context.Context, query url.Values) ([]Tra
 const DefaultHost = "https://localhost:5000"
 
 func New(host string) *Client {
+	if host == "" {
+		host = os.Getenv("IBCLIENTPORTAL_HOST")
+	}
 	if host == "" {
 		host = DefaultHost
 	}

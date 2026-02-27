@@ -261,6 +261,61 @@ func TestListTransactionsEndpoint(t *testing.T) {
 	}
 }
 
+func TestLedgerEndpoint(t *testing.T) {
+	infoCh := make(chan requestInfo, 1)
+	client, server := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		infoCh <- requestInfo{
+			method: r.Method,
+			path:   r.URL.Path,
+			query:  r.URL.RawQuery,
+			cookie: r.Header.Get("Cookie"),
+			body:   string(body),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(ledgerResponse)
+	})
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	resp, err := client.Portfolio.Ledger(ctx, "U1234567")
+	if err != nil {
+		t.Fatalf("ledger: %v", err)
+	}
+	if len(resp) != 2 {
+		t.Fatalf("expected 2 ledger entries, got %d", len(resp))
+	}
+	usd, ok := resp["USD"]
+	if !ok {
+		t.Fatalf("expected USD key in response: %#v", resp)
+	}
+	if usd.NetLiquidationValue != 75250.75 {
+		t.Errorf("expected NetLiquidationValue 75250.75, got %f", usd.NetLiquidationValue)
+	}
+	if usd.CashBalance != 50000.50 {
+		t.Errorf("expected CashBalance 50000.50, got %f", usd.CashBalance)
+	}
+
+	select {
+	case info := <-infoCh:
+		if info.method != http.MethodGet {
+			t.Errorf("expected GET, got %s", info.method)
+		}
+		if info.path != "/v1/api/portfolio/U1234567/ledger" {
+			t.Errorf("unexpected path: %s", info.path)
+		}
+		if info.query != "" {
+			t.Errorf("unexpected query: %q", info.query)
+		}
+		if info.body != "" {
+			t.Errorf("unexpected body: %q", info.body)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for request")
+	}
+}
+
 func TestListTradesEndpointClearsCookies(t *testing.T) {
 	infoCh := make(chan requestInfo, 1)
 	client, server := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
