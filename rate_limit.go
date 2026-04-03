@@ -202,8 +202,8 @@ func (r *RateLimiter) limiterForRule(rule RateLimitRule, accountID string) *rate
 }
 
 func stripQuery(path string) string {
-	if idx := strings.Index(path, "?"); idx >= 0 {
-		return path[:idx]
+	if before, _, ok := strings.Cut(path, "?"); ok {
+		return before
 	}
 	return path
 }

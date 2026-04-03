@@ -39,7 +39,7 @@ const Version = "0.5.0"
 
 const userAgent = "ibclientportal-go/" + Version
 
-func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, requestBody interface{}, resp interface{}) error {
+func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, requestBody any, resp any) error {
 	if c == nil {
 		panic("nil client")
 	}
@@ -77,11 +77,11 @@ func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string
 	return c.Do(req, &resp)
 }
 
-func (c *Client) ListResource(ctx context.Context, pathPart string, data url.Values, v interface{}) error {
+func (c *Client) ListResource(ctx context.Context, pathPart string, data url.Values, v any) error {
 	return c.MakeRequest(ctx, "GET", pathPart, data, nil, v)
 }
 
-func (c *Client) UpdateResource(ctx context.Context, pathPart string, data interface{}, resp interface{}) error {
+func (c *Client) UpdateResource(ctx context.Context, pathPart string, data any, resp any) error {
 	return c.MakeRequest(ctx, "POST", pathPart, url.Values{}, data, resp)
 }
 
@@ -480,12 +480,12 @@ type OrdersService struct {
 
 // TradableAccountsResponse is the response from /iserver/accounts.
 type TradableAccountsResponse struct {
-	Accounts        []string               `json:"accounts"`
-	AcctProps       map[string]interface{} `json:"acctProps"`
-	Aliases         map[string]string      `json:"aliases"`
-	SelectedAccount string                 `json:"selectedAccount"`
-	IsFT            bool                   `json:"isFt"`
-	IsPaper         bool                   `json:"isPaper"`
+	Accounts        []string          `json:"accounts"`
+	AcctProps       map[string]any    `json:"acctProps"`
+	Aliases         map[string]string `json:"aliases"`
+	SelectedAccount string            `json:"selectedAccount"`
+	IsFT            bool              `json:"isFt"`
+	IsPaper         bool              `json:"isPaper"`
 }
 
 // ListTradableAccounts returns a list of accounts the user has trading access to.
