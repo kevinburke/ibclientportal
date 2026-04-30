@@ -34,9 +34,6 @@ type Client struct {
 	SecurityDefinitions  *SecurityDefinitionService
 }
 
-// The ibclientportal version. Run "make release" to bump this number.
-const Version = "0.6.0"
-
 const userAgent = "ibclientportal-go/" + Version
 
 func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, requestBody any, resp any) error {
