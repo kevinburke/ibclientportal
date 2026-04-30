@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -152,6 +153,42 @@ func TestTransactionsParsing(t *testing.T) {
 	}
 	if sell.Amount != 775.00 {
 		t.Errorf("expected Amount 775.00, got %f", sell.Amount)
+	}
+}
+
+func TestTransactionsParsingIncludesRealTimeObjectFailsWithValue(t *testing.T) {
+	data := []byte(`{
+		"currency": "USD",
+		"from": 1700000000000,
+		"id": "txn-123",
+		"includesRealTime": {"enabled": false},
+		"to": 1700100000000,
+		"warning": "",
+		"transactions": [{
+			"date": "2024-01-15 10:30:00",
+			"rawDate": "20240115",
+			"cur": "USD",
+			"acctid": "U1234567",
+			"conid": 265598,
+			"type": "B",
+			"desc": "AAPL Buy"
+		}]
+	}`)
+	var resp TransactionsResponse
+	err := json.Unmarshal(data, &resp)
+	if err == nil {
+		t.Fatal("json.Unmarshal succeeded, want error")
+	}
+	if !strings.Contains(err.Error(), `"enabled": false`) {
+		t.Fatalf("error %q does not include raw includesRealTime value", err)
+	}
+}
+
+func TestTransactionsParsingIncludesRealTimeStringFails(t *testing.T) {
+	data := []byte(`{"includesRealTime": "false"}`)
+	var resp TransactionsResponse
+	if err := json.Unmarshal(data, &resp); err == nil {
+		t.Fatal("json.Unmarshal succeeded, want error")
 	}
 }
 

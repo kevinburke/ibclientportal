@@ -303,6 +303,34 @@ type TransactionsResponse struct {
 	Transactions     []TransactionRecord `json:"transactions"`
 }
 
+// UnmarshalJSON accepts the documented boolean includesRealTime field. If IB
+// returns a different shape, include the raw value in the error so callers can
+// report it and this library can be updated deliberately.
+func (t *TransactionsResponse) UnmarshalJSON(data []byte) error {
+	type transactionsResponse TransactionsResponse
+	var aux struct {
+		transactionsResponse
+		IncludesRealTime json.RawMessage `json:"includesRealTime"`
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = TransactionsResponse(aux.transactionsResponse)
+	if len(aux.IncludesRealTime) == 0 {
+		return nil
+	}
+	includesRealTime := bytes.TrimSpace(aux.IncludesRealTime)
+	switch string(includesRealTime) {
+	case "true":
+		t.IncludesRealTime = true
+		return nil
+	case "false", "null":
+		t.IncludesRealTime = false
+		return nil
+	}
+	return fmt.Errorf("ibclientportal: includesRealTime: expected boolean, got %s", includesRealTime)
+}
+
 // TransactionRecord is a single transaction in a TransactionsResponse.
 type TransactionRecord struct {
 	Date        string  `json:"date"`
