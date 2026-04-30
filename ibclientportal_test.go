@@ -156,12 +156,12 @@ func TestTransactionsParsing(t *testing.T) {
 	}
 }
 
-func TestTransactionsParsingIncludesRealTimeObjectFailsWithValue(t *testing.T) {
+func TestTransactionsParsingIncludesRealTimeObject(t *testing.T) {
 	data := []byte(`{
 		"currency": "USD",
 		"from": 1700000000000,
 		"id": "txn-123",
-		"includesRealTime": {"enabled": false},
+		"includesRealTime": {"asOf": 1777579009432},
 		"to": 1700100000000,
 		"warning": "",
 		"transactions": [{
@@ -175,12 +175,14 @@ func TestTransactionsParsingIncludesRealTimeObjectFailsWithValue(t *testing.T) {
 		}]
 	}`)
 	var resp TransactionsResponse
-	err := json.Unmarshal(data, &resp)
-	if err == nil {
-		t.Fatal("json.Unmarshal succeeded, want error")
+	if err := json.Unmarshal(data, &resp); err != nil {
+		t.Fatalf("failed to parse transactions response: %v", err)
 	}
-	if !strings.Contains(err.Error(), `"enabled": false`) {
-		t.Fatalf("error %q does not include raw includesRealTime value", err)
+	if !resp.IncludesRealTime {
+		t.Fatal("IncludesRealTime = false, want true")
+	}
+	if resp.IncludesRealTimeAsOf != 1777579009432 {
+		t.Fatalf("IncludesRealTimeAsOf = %d, want 1777579009432", resp.IncludesRealTimeAsOf)
 	}
 }
 
@@ -189,6 +191,18 @@ func TestTransactionsParsingIncludesRealTimeStringFails(t *testing.T) {
 	var resp TransactionsResponse
 	if err := json.Unmarshal(data, &resp); err == nil {
 		t.Fatal("json.Unmarshal succeeded, want error")
+	}
+}
+
+func TestTransactionsParsingIncludesRealTimeObjectWithoutAsOfFailsWithValue(t *testing.T) {
+	data := []byte(`{"includesRealTime": {"enabled": false}}`)
+	var resp TransactionsResponse
+	err := json.Unmarshal(data, &resp)
+	if err == nil {
+		t.Fatal("json.Unmarshal succeeded, want error")
+	}
+	if !strings.Contains(err.Error(), `"enabled": false`) {
+		t.Fatalf("error %q does not include raw includesRealTime value", err)
 	}
 }
 

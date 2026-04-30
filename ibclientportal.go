@@ -291,18 +291,19 @@ type TransactionsRequest struct {
 
 // TransactionsResponse is the response from /pa/transactions.
 type TransactionsResponse struct {
-	Currency         string              `json:"currency"`
-	From             int64               `json:"from"`
-	ID               string              `json:"id"`
-	IncludesRealTime bool                `json:"includesRealTime"`
-	To               int64               `json:"to"`
-	Warning          string              `json:"warning"`
-	Transactions     []TransactionRecord `json:"transactions"`
+	Currency             string              `json:"currency"`
+	From                 int64               `json:"from"`
+	ID                   string              `json:"id"`
+	IncludesRealTime     bool                `json:"includesRealTime"`
+	IncludesRealTimeAsOf int64               `json:"-"`
+	To                   int64               `json:"to"`
+	Warning              string              `json:"warning"`
+	Transactions         []TransactionRecord `json:"transactions"`
 }
 
-// UnmarshalJSON accepts the documented boolean includesRealTime field. If IB
-// returns a different shape, include the raw value in the error so callers can
-// report it and this library can be updated deliberately.
+// UnmarshalJSON accepts the documented boolean includesRealTime field. IB's
+// published spec does not describe the asOf object shape, but live responses
+// have returned it.
 func (t *TransactionsResponse) UnmarshalJSON(data []byte) error {
 	type transactionsResponse TransactionsResponse
 	var aux struct {
@@ -325,7 +326,15 @@ func (t *TransactionsResponse) UnmarshalJSON(data []byte) error {
 		t.IncludesRealTime = false
 		return nil
 	}
-	return fmt.Errorf("ibclientportal: includesRealTime: expected boolean, got %s", includesRealTime)
+	var realTimeInfo struct {
+		AsOf int64 `json:"asOf"`
+	}
+	if err := json.Unmarshal(includesRealTime, &realTimeInfo); err == nil && realTimeInfo.AsOf != 0 {
+		t.IncludesRealTime = true
+		t.IncludesRealTimeAsOf = realTimeInfo.AsOf
+		return nil
+	}
+	return fmt.Errorf("ibclientportal: includesRealTime: expected boolean or asOf object, got %s", includesRealTime)
 }
 
 // TransactionRecord is a single transaction in a TransactionsResponse.
