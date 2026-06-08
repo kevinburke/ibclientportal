@@ -27,6 +27,12 @@ jobs:
       - name: Run go vet
         run: go vet -trimpath ./...
 
+      # Ensure flex/flex_sections.go stays in sync with flex/testdata/sample.xml.
+      - name: Check generated code is up to date
+        run: |
+          go install github.com/kevinburke/differ@latest
+          differ go generate ./...
+
       # -short skips integration tests that require a running IB gateway
       - name: Run tests
         run: go test -trimpath -short ./...

@@ -34,7 +34,8 @@ type Client struct {
 	SecurityDefinitions  *SecurityDefinitionService
 }
 
-const userAgent = "ibclientportal-go/" + Version
+// UserAgent is the default User-Agent sent by this module.
+const UserAgent = "ibclientportal-go/" + Version
 
 func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string, data url.Values, requestBody any, resp any) error {
 	if c == nil {
@@ -67,9 +68,9 @@ func (c *Client) MakeRequest(ctx context.Context, method string, pathPart string
 		return err
 	}
 	if ua := req.Header.Get("User-Agent"); ua == "" {
-		req.Header.Set("User-Agent", userAgent)
+		req.Header.Set("User-Agent", UserAgent)
 	} else {
-		req.Header.Set("User-Agent", userAgent+" "+ua)
+		req.Header.Set("User-Agent", UserAgent+" "+ua)
 	}
 	return c.Do(req, &resp)
 }
