@@ -1,6 +1,6 @@
 # History
 
-## Unreleased
+## 0.7.0 (June 9, 2026)
 
 - Add the `flex` package, a client for the Flex Web Service: a separate IBKR API
   that downloads Activity Flex Query reports without the Java gateway or a
@@ -19,6 +19,22 @@
   `flex/testdata/sample.xml` (built by `sanitize.py` from a real report, with
   all values replaced from a fixed vocabulary); CI guards against generated-code
   drift, and a test guards the sample against any non-synthetic value.
+
+## 0.6.2 (April 30, 2026)
+
+- Accept the real-time `asOf` transaction marker returned by the IBKR API.
+
+## 0.6.1 (April 30, 2026)
+
+- Add a `make release` target and `Version` constant for release automation.
+
+## 0.6.0 (April 30, 2026)
+
+- Return an error when `includesRealTime` has an invalid value instead of
+  silently ignoring malformed IBKR API responses.
+- Build CI for all pushed refs.
+- Add daily Dependabot updates.
+- Bump `golang.org/x/time` from 0.14.0 to 0.15.0.
 
 ## 0.5.0 (February 27, 2026)
 
