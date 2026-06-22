@@ -675,6 +675,8 @@ func New(host string) *Client {
 	}
 	rc := restclient.New("", "", host+"/v1/api")
 	rc.UploadType = restclient.JSON
+	// Surface HTTP 429 as a typed *RateLimitError; see errors.go.
+	rc.ErrorParser = parseError
 
 	// Create a cookie jar to persist session cookies across requests
 	// (required for account switching to work properly)

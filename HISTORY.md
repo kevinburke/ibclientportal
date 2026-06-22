@@ -1,5 +1,19 @@
 # History
 
+## 0.8.0 (June 22, 2026)
+
+- Surface HTTP 429 (Too Many Requests) from the gateway as a typed
+  `RateLimitError` instead of restclient's opaque "invalid response body:"
+  error. The gateway throttles some endpoints (notably `/pa/transactions`, one
+  request per 15 minutes per account) and answers a throttled request with an
+  empty body, which the default error parser could not distinguish from a real
+  failure. `New` now installs an `ErrorParser` that returns `*RateLimitError`
+  for 429s and defers to the default parser otherwise. Detect it with
+  `errors.As` and back off. The `RetryAfter` field honors a `Retry-After`
+  header if one is present, but IB is not known to send one, so it is typically
+  0. Because a 429 can mean a multi-minute penalty box, prefer `EnableRateLimits`
+  for proactive throttling that avoids most 429s in the first place.
+
 ## 0.7.0 (June 9, 2026)
 
 - Add the `flex` package, a client for the Flex Web Service: a separate IBKR API
