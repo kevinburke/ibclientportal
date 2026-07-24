@@ -1,5 +1,31 @@
 # History
 
+## Unreleased
+
+- Add streaming market data over the gateway websocket
+  (`wss://localhost:5000/v1/api/ws`). `(*Client).DialStream` opens an
+  authenticated connection and returns a `*Stream`;
+  `(*Stream).SubscribeMarketData(conid, fields...)` subscribes to live quotes
+  and `(*Stream).Updates()` delivers `MarketDataUpdate` values. The connection
+  reuses the client's session cookies and TLS settings and keeps itself alive
+  with periodic keep-alives. `DialStream` checks the session via `/tickle` and
+  waits for the gateway's `sts` (session established) frame before returning, so
+  a subscription is never sent too early (the gateway silently drops early
+  subscriptions). The `Stream` reconnects automatically if the connection
+  drops, replaying every active subscription on the new connection; the
+  `Updates` channel stays open across reconnects and closes only when `Close` is
+  called or the dial context is cancelled. Field codes are exposed as `Field*`
+  constants. Adds a dependency on `github.com/gorilla/websocket`.
+
+- Fix `New` sharing a single process-wide `*http.Client` and transport across
+  all `Client` values (a side effect of `restclient.New`). Each `Client` now
+  gets its own `*http.Client`, cookie jar, and cloned transport. Previously two
+  Clients shared one cookie jar (leaking session state between them) and
+  concurrent `New` calls raced on the shared jar; `SetInsecureSkipVerify` also
+  mutated the global `http.DefaultTransport`, disabling TLS verification
+  process-wide. This was surfaced by the streaming work, which clones the
+  transport's TLS config for the websocket dial.
+
 ## 0.8.0 (June 22, 2026)
 
 - Surface HTTP 429 (Too Many Requests) from the gateway as a typed

@@ -3,6 +3,7 @@ module github.com/kevinburke/ibclientportal
 go 1.25.0
 
 require (
+	github.com/gorilla/websocket v1.5.3
 	github.com/kevinburke/rest v0.0.0-20250718180114-1a15e4f2364f
 	golang.org/x/time v0.15.0
 )

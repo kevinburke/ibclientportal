@@ -22,6 +22,10 @@ import (
 // https://www.interactivebrokers.com/api/doc.html#tag/Contract/paths/~1trsrv~1futures/get
 type Client struct {
 	*restclient.Client
+	// host is the resolved gateway host (scheme + authority, no path),
+	// e.g. "https://localhost:5000". Used to derive the streaming
+	// websocket URL; see stream.go.
+	host              string
 	rateLimiter       *RateLimiter
 	selectedAccountMu sync.RWMutex
 	selectedAccount   string
@@ -678,13 +682,29 @@ func New(host string) *Client {
 	// Surface HTTP 429 as a typed *RateLimitError; see errors.go.
 	rc.ErrorParser = parseError
 
-	// Create a cookie jar to persist session cookies across requests
-	// (required for account switching to work properly)
+	// restclient.New hands back a single process-wide shared *http.Client (and
+	// the shared http.DefaultTransport). Give this Client its own so that its
+	// state is isolated from every other Client and from the global default:
+	//   - the cookie jar persists session cookies across requests (required for
+	//     account switching), and must not be shared, or two Clients would leak
+	//     each other's session; writing the shared client's Jar also races when
+	//     Clients are constructed concurrently.
+	//   - SetInsecureSkipVerify mutates the transport's TLS config; on the
+	//     shared transport that would disable verification process-wide.
 	jar, _ := cookiejar.New(nil)
-	rc.Client.Jar = jar
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	rc.Client = &http.Client{
+		Transport: &restclient.Transport{
+			RoundTripper: transport,
+			Debug:        restclient.DefaultTransport.Debug,
+			Output:       restclient.DefaultTransport.Output,
+		},
+		Jar: jar,
+	}
 
 	c := &Client{
 		Client: rc,
+		host:   host,
 	}
 
 	c.Contracts = &ContractService{c}
@@ -707,20 +727,26 @@ func (c *Client) clearSessionCookies() {
 	c.Client.Client.Jar = jar
 }
 
-func (c *Client) SetInsecureSkipVerify() {
+// httpTransport unwraps the client's RoundTripper down to the underlying
+// *http.Transport (the restclient.Transport wrapper is transparent here). It
+// returns (nil, false) if the transport is some other RoundTripper.
+func (c *Client) httpTransport() (*http.Transport, bool) {
 	ctr := c.Client.Client.Transport
-	tr, ok := ctr.(*http.Transport)
-	if ok {
-		setInsecure(tr)
-		return
+	if tr, ok := ctr.(*http.Transport); ok {
+		return tr, true
 	}
 	rct, ok := ctr.(*restclient.Transport)
 	if !ok {
-		panic(fmt.Sprintf("don't know how to set insecure skip verify on this http.RoundTripper: %#v", ctr))
+		return nil, false
 	}
-	tr, ok = rct.RoundTripper.(*http.Transport)
+	tr, ok := rct.RoundTripper.(*http.Transport)
+	return tr, ok
+}
+
+func (c *Client) SetInsecureSkipVerify() {
+	tr, ok := c.httpTransport()
 	if !ok {
-		panic(fmt.Sprintf("unknown transport set on restclient.Transport: %#v", rct.RoundTripper))
+		panic(fmt.Sprintf("don't know how to set insecure skip verify on this http.RoundTripper: %#v", c.Client.Client.Transport))
 	}
 	setInsecure(tr)
 }

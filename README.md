@@ -46,6 +46,55 @@ func main() {
 }
 ```
 
+## Live quotes: streaming market data (websocket)
+
+The gateway also exposes a websocket at `wss://localhost:5000/v1/api/ws` for
+streaming market data ("smd") keyed by contract id (`conid`). Use
+`DialStream` to open it; the connection reuses the client's authenticated
+session, so the same login and `SetInsecureSkipVerify` caveats apply as for the
+REST calls. As with the REST snapshot endpoint, `/iserver/accounts` must have
+been called before subscribing.
+
+```go
+client := ibclientportal.New("") // defaults to https://localhost:5000
+client.SetInsecureSkipVerify()   // self-signed localhost gateway cert
+
+stream, err := client.DialStream(ctx)
+if err != nil {
+	// ...
+}
+defer stream.Close()
+
+// 265598 is AAPL. Fields default to last/bid/ask and sizes if omitted.
+if err := stream.SubscribeMarketData(265598,
+	ibclientportal.FieldLastPrice,
+	ibclientportal.FieldBidPrice,
+	ibclientportal.FieldAskPrice,
+); err != nil {
+	// ...
+}
+
+for update := range stream.Updates() {
+	if last, ok := update.Float(ibclientportal.FieldLastPrice); ok {
+		log.Printf("conid %d last=%.2f", update.Conid, last)
+	}
+}
+// The loop ends when the stream closes; check stream.Err() for the cause.
+```
+
+Updates are incremental: the gateway sends only the fields that changed, so
+maintain your own latest-value state per conid. `MarketDataUpdate.Fields` maps
+IB numeric field codes (the `Field*` constants) to raw JSON values;
+`String` and `Float` read them regardless of whether IB encoded a given field
+as a JSON string or number.
+
+The stream reconnects automatically if the connection drops and replays every
+active subscription, so the `for range stream.Updates()` loop keeps running
+across reconnects. Because the context passed to `DialStream` governs those
+reconnect attempts, pass one that lives as long as you want the stream (e.g. a
+`context.Context` you cancel at shutdown), not a short per-request context. The
+loop exits only when you call `stream.Close()` or that context is cancelled.
+
 ## Cash flows: deposits, withdrawals, fees (Flex Web Service)
 
 The Client Portal Gateway does not expose deposit/withdrawal/fee history to
