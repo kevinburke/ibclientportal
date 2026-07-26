@@ -9,6 +9,60 @@ permissions:
   contents: read
 
 jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Install formatting tools
+        run: |
+          go install github.com/kevinburke/differ@v0.0.0-20260403230520-c0574ebcacb2
+          go install golang.org/x/tools/cmd/goimports@latest
+
+      - name: Check module dependencies
+        run: differ go mod tidy
+
+      - name: Check Go fixes
+        run: differ go fix ./...
+
+      - name: Check Go formatting
+        run: differ go fmt ./...
+
+      - name: Check import formatting
+        run: |
+          mapfile -t go_files < <(git ls-files -- '*.go')
+          differ goimports -w "${go_files[@]}"
+
+      # Ensure flex/flex_sections.go stays in sync with flex/testdata/sample.xml.
+      - name: Check generated code is up to date
+        run: |
+          go install github.com/kevinburke/differ@v0.0.0-20260403230520-c0574ebcacb2
+          differ go generate ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
+
+      - name: Run staticcheck
+        run: staticcheck ./...
+
+      - name: Run go vet
+        run: go vet -trimpath ./...
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -17,22 +71,30 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
-
-      - name: Install staticcheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@latest
-
-      - name: Run staticcheck
-        run: staticcheck ./...
-
-      - name: Run go vet
-        run: go vet -trimpath ./...
-
-      # Ensure flex/flex_sections.go stays in sync with flex/testdata/sample.xml.
-      - name: Check generated code is up to date
-        run: |
-          go install github.com/kevinburke/differ@latest
-          differ go generate ./...
+          cache: true
 
       # -short skips integration tests that require a running IB gateway
       - name: Run tests
-        run: go test -trimpath -short ./...
+        run: go test -trimpath -race -short -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage.out
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [format, lint, test]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Build command
+        run: |
+          mkdir -p tmp
+          go build -trimpath -buildvcs=true -o tmp/ibclientportal-flex ./cmd/ibclientportal-flex
