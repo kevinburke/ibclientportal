@@ -77,12 +77,6 @@ jobs:
       - name: Run tests
         run: go test -trimpath -race -short -covermode=atomic -coverprofile=coverage.out ./...
 
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage
-          path: coverage.out
-
   build:
     runs-on: ubuntu-latest
     needs: [format, lint, test]
