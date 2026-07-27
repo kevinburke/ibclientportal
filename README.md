@@ -90,7 +90,10 @@ as a JSON string or number.
 
 The stream reconnects automatically if the connection drops and replays every
 active subscription, so the `for range stream.Updates()` loop keeps running
-across reconnects. Because the context passed to `DialStream` governs those
+across reconnects. It also renews subscriptions on a timer: the gateway
+terminates a market-data subscription after 10 minutes even on a healthy
+connection, so the stream re-sends each active subscription every 9 minutes to
+keep the data flowing. Because the context passed to `DialStream` governs those
 reconnect attempts, pass one that lives as long as you want the stream (e.g. a
 `context.Context` you cancel at shutdown), not a short per-request context. The
 loop exits only when you call `stream.Close()` or that context is cancelled.

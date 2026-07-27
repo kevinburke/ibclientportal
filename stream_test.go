@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -265,5 +266,101 @@ func TestStreamReconnect(t *testing.T) {
 
 	if got := atomic.LoadInt32(&conns); got < 2 {
 		t.Errorf("gateway saw %d connections, want >= 2 (reconnect)", got)
+	}
+}
+
+// TestStreamRenewResubscribes verifies that a renewal re-sends every active
+// subscription on the live connection, without a reconnect, so subscriptions
+// outlive the gateway's 10-minute expiry. It drives the mechanism the renewal
+// timer invokes on each tick directly, rather than waiting on the wall-clock
+// interval.
+func TestStreamRenewResubscribes(t *testing.T) {
+	t.Parallel()
+
+	subscribes := make(chan int, 8) // conids the gateway received smd requests for
+
+	var upgrader websocket.Upgrader
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/api/tickle", func(w http.ResponseWriter, r *http.Request) {
+		writeTickleAuthed(w)
+	})
+	mux.HandleFunc("/v1/api/ws", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+		conn.WriteMessage(websocket.TextMessage, []byte(stsFrame))
+		for {
+			_, data, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			msg := string(data)
+			if !strings.HasPrefix(msg, "smd+") {
+				continue // ignore keep-alives
+			}
+			// Parse the conid out of "smd+<conid>+{...}".
+			rest := strings.TrimPrefix(msg, "smd+")
+			plus := strings.IndexByte(rest, '+')
+			if plus < 0 {
+				t.Errorf("malformed smd frame: %q", msg)
+				continue
+			}
+			conid, err := strconv.Atoi(rest[:plus])
+			if err != nil {
+				t.Errorf("bad conid in %q: %v", msg, err)
+				continue
+			}
+			subscribes <- conid
+		}
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client := New(srv.URL)
+	stream, err := client.DialStream(ctx)
+	if err != nil {
+		t.Fatalf("DialStream: %v", err)
+	}
+	defer stream.Close()
+
+	want := []int{111, 222}
+	for _, conid := range want {
+		if err := stream.SubscribeMarketData(conid, FieldLastPrice); err != nil {
+			t.Fatalf("SubscribeMarketData(%d): %v", conid, err)
+		}
+	}
+
+	// Collect the initial subscribes so the renewal round is unambiguous.
+	drainSubscribes(t, ctx, subscribes, want)
+
+	// A renewal re-sends every active subscription on the same connection.
+	stream.resubscribeAll()
+	drainSubscribes(t, ctx, subscribes, want)
+}
+
+// drainSubscribes reads len(want) conids from ch and asserts they are exactly
+// the set want (order-independent, since subscriptions are stored in a map).
+func drainSubscribes(t *testing.T, ctx context.Context, ch <-chan int, want []int) {
+	t.Helper()
+	got := make(map[int]bool)
+	for range want {
+		select {
+		case conid := <-ch:
+			got[conid] = true
+		case <-ctx.Done():
+			t.Fatalf("timed out waiting for subscribes; got %v, want %v", got, want)
+		}
+	}
+	for _, conid := range want {
+		if !got[conid] {
+			t.Errorf("missing subscribe for conid %d; got %v", conid, got)
+		}
 	}
 }

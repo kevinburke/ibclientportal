@@ -14,8 +14,11 @@
   subscriptions). The `Stream` reconnects automatically if the connection
   drops, replaying every active subscription on the new connection; the
   `Updates` channel stays open across reconnects and closes only when `Close` is
-  called or the dial context is cancelled. Field codes are exposed as `Field*`
-  constants. Adds a dependency on `github.com/gorilla/websocket`.
+  called or the dial context is cancelled. It also renews every active
+  subscription every 9 minutes, because the gateway terminates a market-data
+  subscription after 10 minutes even on a healthy connection. Field codes are
+  exposed as `Field*` constants. Adds a dependency on
+  `github.com/gorilla/websocket`.
 
 - Fix `New` sharing a single process-wide `*http.Client` and transport across
   all `Client` values (a side effect of `restclient.New`). Each `Client` now

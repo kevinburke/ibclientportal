@@ -48,6 +48,13 @@ const (
 	// connection being dropped.
 	defaultHeartbeatInterval = 30 * time.Second
 
+	// defaultResubscribeInterval is how often the Stream re-sends every active
+	// market-data subscription to renew it. IBKR terminates an "smd"
+	// subscription after 10 minutes even on a healthy connection; re-sending
+	// before then keeps the data flowing. The value leaves a ~1 minute buffer
+	// under the 10 minute limit for scheduling and network jitter.
+	defaultResubscribeInterval = 9 * time.Minute
+
 	// reconnect backoff bounds and the per-attempt connect timeout used by the
 	// supervisor when the connection drops.
 	reconnectMinBackoff = 500 * time.Millisecond
@@ -124,6 +131,11 @@ type Stream struct {
 	ctx     context.Context // governs the stream lifetime, including reconnects
 	updates chan MarketDataUpdate
 
+	// resubscribeInterval is how often active subscriptions are renewed; set
+	// from defaultResubscribeInterval in DialStream. It is fixed once the
+	// renewal goroutine starts and is not mutated afterward.
+	resubscribeInterval time.Duration
+
 	connMu sync.Mutex
 	conn   *websocket.Conn
 
@@ -168,21 +180,24 @@ func (c *Client) wsURL() string {
 //
 // After the first connection, the Stream reconnects automatically if the
 // connection drops, replaying every active subscription on the new connection.
-// The Updates channel stays open across reconnects and is closed only when the
-// stream ends: either Close is called or ctx is cancelled. Because ctx governs
-// reconnect attempts too, pass a context that lives as long as you want the
-// stream (for example one you cancel at shutdown), not a short per-request
-// context.
+// It also renews every active subscription periodically, because the gateway
+// terminates a market-data subscription after 10 minutes even on a healthy
+// connection. The Updates channel stays open across reconnects and is closed
+// only when the stream ends: either Close is called or ctx is cancelled.
+// Because ctx governs reconnect attempts too, pass a context that lives as long
+// as you want the stream (for example one you cancel at shutdown), not a short
+// per-request context.
 //
 // If SetInsecureSkipVerify was called on the client (typical for the default
 // self-signed localhost gateway), the websocket dial reuses that TLS setting.
 func (c *Client) DialStream(ctx context.Context) (*Stream, error) {
 	s := &Stream{
-		client:  c,
-		ctx:     ctx,
-		updates: make(chan MarketDataUpdate, 256),
-		subs:    make(map[int][]string),
-		done:    make(chan struct{}),
+		client:              c,
+		ctx:                 ctx,
+		updates:             make(chan MarketDataUpdate, 256),
+		subs:                make(map[int][]string),
+		done:                make(chan struct{}),
+		resubscribeInterval: defaultResubscribeInterval,
 	}
 	conn, err := s.connect(ctx)
 	if err != nil {
@@ -192,6 +207,7 @@ func (c *Client) DialStream(ctx context.Context) (*Stream, error) {
 
 	go s.supervise()
 	go s.heartbeatLoop()
+	go s.renewLoop()
 	return s, nil
 }
 
@@ -502,6 +518,28 @@ func (s *Stream) heartbeatLoop() {
 			if err := s.writeText("tic"); err != nil {
 				wsDebugf("heartbeat write failed: %v", err)
 			}
+		}
+	}
+}
+
+// renewLoop periodically re-sends every active subscription so it does not hit
+// the gateway's 10-minute market-data subscription expiry. Re-sending an "smd"
+// request for a still-subscribed conid renews it; the reconnect path in
+// supervise handles connection loss separately, so a renewal that lands during
+// a disconnect is a harmless no-op (the write fails and is retried on
+// reconnect).
+func (s *Stream) renewLoop() {
+	t := time.NewTicker(s.resubscribeInterval)
+	defer t.Stop()
+	for {
+		select {
+		case <-s.done:
+			return
+		case <-s.ctx.Done():
+			return
+		case <-t.C:
+			wsDebugf("renewing subscriptions")
+			s.resubscribeAll()
 		}
 	}
 }
