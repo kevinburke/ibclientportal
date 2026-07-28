@@ -98,6 +98,40 @@ reconnect attempts, pass one that lives as long as you want the stream (e.g. a
 `context.Context` you cancel at shutdown), not a short per-request context. The
 loop exits only when you call `stream.Close()` or that context is cancelled.
 
+### Market-data lines
+
+IBKR allows roughly 100 concurrent market-data lines per account. The limit is
+account-wide and transport-agnostic: REST snapshots
+(`/iserver/marketdata/snapshot`) and websocket `smd` subscriptions draw from the
+same pool, as do Trader Workstation watchlists. Streaming a hundred conids
+therefore leaves nothing for a snapshot of a hundred-and-first, and IBKR does
+not document what happens at that boundary.
+
+`cmd/ibclientportal-mdprobe` answers the question empirically for a given
+account. It snapshots one contract while idle to establish a baseline, opens the
+websocket and subscribes to `--count` conids, snapshots that same contract again
+while saturated, and then watches for streaming conids that fall silent
+(displacement). It prints a verdict and, with `--json`, writes the whole record.
+
+```sh
+# resolve conids and print the plan without touching market data
+ibclientportal-mdprobe --host https://localhost:5000 --insecure --dry-run
+
+# the real thing, keeping the raw websocket frames for inspection
+ibclientportal-mdprobe --host https://localhost:5000 --insecure \
+    --count 100 --frames --json result.json 2>frames.log
+```
+
+Running it consumes `--count` live market-data lines for the duration, so other
+consumers of the account may be starved while it runs; prefer a quiet market and
+ramp up with a small `--count` first. It releases every line it took —
+unsubscribing each conid, closing the stream, and calling
+`/iserver/marketdata/unsubscribeall` — including on Ctrl-C.
+
+`--frames` is worth passing: `(*Stream).Updates` delivers only `smd` frames, so
+a gateway error or `system` frame is invisible to the structured report but is
+logged to stderr. Redirect it and look for frames whose topic is not `smd+`.
+
 ## Cash flows: deposits, withdrawals, fees (Flex Web Service)
 
 The Client Portal Gateway does not expose deposit/withdrawal/fee history to

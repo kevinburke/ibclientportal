@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Add `cmd/ibclientportal-mdprobe`, a diagnostic that measures what the gateway
+  does when the account's ~100 concurrent market-data lines are saturated. It
+  snapshots one contract while idle, subscribes to `--count` conids over the
+  websocket, snapshots that contract again while saturated, and watches for
+  streaming conids that fall silent, then prints a verdict (limit not reached /
+  explicit error / silent failure / displacement). `--dry-run` resolves conids
+  without touching market data; `--json` writes the full record. The tool always
+  releases the lines it took, including on Ctrl-C.
+
 - Add streaming market data over the gateway websocket
   (`wss://localhost:5000/v1/api/ws`). `(*Client).DialStream` opens an
   authenticated connection and returns a `*Stream`;
