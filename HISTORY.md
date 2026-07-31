@@ -1,5 +1,22 @@
 # History
 
+## Unreleased
+
+- Add order placement: `(*OrdersService).PlaceOrders`, `ConfirmOrder`,
+  `ModifyOrder`, `CancelOrder` and `WhatIf`. Order submission answers with a
+  union of three shapes — a question that must be confirmed before the order
+  reaches the market, a placed order, or an error — so `OrderPlacement` exposes
+  `IsQuestion`/`IsPlaced`/`Question` rather than leaving callers to guess which
+  arrived. The gateway returns some rejections as a bare JSON object with HTTP
+  200 instead of the documented array; those are decoded and surfaced as an
+  error instead of failing to parse.
+
+- Add `(*MarketDataService).Snapshot`, `Unsubscribe` and `UnsubscribeAll` for
+  one-off REST quotes and for releasing market-data lines. `Snapshot` returns
+  `Snapshot` values with the same `String`/`Float` field accessors as a
+  streaming `MarketDataUpdate`, and reports a field the gateway has not resolved
+  yet as absent rather than zero.
+
 ## 0.9.0 (July 27, 2026)
 
 - Add streaming market data over the gateway websocket

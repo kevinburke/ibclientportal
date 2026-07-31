@@ -132,6 +132,58 @@ unsubscribing each conid, closing the stream, and calling
 a gateway error or `system` frame is invisible to the structured report but is
 logged to stderr. Redirect it and look for frames whose topic is not `smd+`.
 
+### One-off quotes: snapshots
+
+`(*MarketDataService).Snapshot` reads the same fields over REST, for callers
+that want one quote rather than a subscription:
+
+```go
+snapshots, err := client.MarketData.Snapshot(ctx, []int{265598},
+    []string{ibclientportal.FieldBidPrice, ibclientportal.FieldAskPrice})
+bid, ok := snapshots[0].Float(ibclientportal.FieldBidPrice)
+```
+
+Two caveats, both of which the caller must handle. `/iserver/accounts` must have
+been called at least once in the session (and `/iserver/secdef/search` for
+derivatives), or the gateway returns nothing. And the first call for a contract
+typically returns little more than the conid while the backend subscribes, so
+poll until the field you want appears rather than reading one empty response as
+"no data". A snapshot holds a market-data line until it is released with
+`Unsubscribe` or `UnsubscribeAll`.
+
+## Trading: placing and cancelling orders
+
+`(*OrdersService).PlaceOrders` submits limit and other orders;
+`ListTradableAccounts` must have been called at least once in the session first,
+or IB rejects the submission.
+
+A successful call does **not** mean the order was transmitted. IB answers order
+submission with a union of three shapes: a question that must be answered before
+anything reaches the market, a placed order, or an error (sometimes with HTTP
+200). Check `IsQuestion` / `IsPlaced` rather than reading fields blind, and keep
+answering with `ConfirmOrder` until every element reports `IsPlaced` — one
+confirmation can produce another question.
+
+```go
+placements, err := client.Orders.PlaceOrders(ctx, accountID, []ibclientportal.OrderRequest{{
+    Conid: 265598, OrderType: "LMT", Side: "BUY", TIF: "DAY", Quantity: 10, Price: 123.45,
+}})
+for len(placements) > 0 && placements[0].IsQuestion() {
+    fmt.Println(placements[0].Question())
+    placements, err = client.Orders.ConfirmOrder(ctx, placements[0].ReplyID, true)
+}
+```
+
+`WhatIf` previews an order without placing it: it is the only way to see IB's
+own commission estimate and margin impact before committing. `CancelOrder`
+cancels a live order — IB acknowledges the request synchronously but cancels
+asynchronously, so poll `ListOrders` to confirm the order actually went away.
+`ModifyOrder` changes a live order's terms and returns the same union, questions
+included.
+
+Set `COID` (a customer order ID, unique for the day) on an order to make a
+retried submission idempotent on IB's side rather than risking a double fill.
+
 ## Cash flows: deposits, withdrawals, fees (Flex Web Service)
 
 The Client Portal Gateway does not expose deposit/withdrawal/fee history to

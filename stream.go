@@ -90,33 +90,14 @@ type MarketDataUpdate struct {
 // surrounding quotes if the underlying JSON value was a string. The second
 // return value reports whether the field was present in this update.
 func (u MarketDataUpdate) String(field string) (string, bool) {
-	raw, ok := u.Fields[field]
-	if !ok {
-		return "", false
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err == nil {
-		return s, true
-	}
-	return string(raw), true
+	return fieldString(u.Fields, field)
 }
 
 // Float returns the value of the given field code as a float64. It handles
 // both JSON-number and JSON-string encodings. The second return value reports
 // whether the field was present and parseable as a number.
 func (u MarketDataUpdate) Float(field string) (float64, bool) {
-	s, ok := u.String(field)
-	if !ok {
-		return 0, false
-	}
-	// IB sometimes prefixes prices with markers such as 'C' (previous close)
-	// or 'H'/'L'; strip any leading non-numeric marker characters.
-	s = strings.TrimLeft(s, "CHBAlch ")
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, false
-	}
-	return f, true
+	return fieldFloat(u.Fields, field)
 }
 
 // Stream is a live websocket connection to the Client Portal Gateway's
