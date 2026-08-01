@@ -1,6 +1,6 @@
 # History
 
-## Unreleased
+## 0.10.0 (July 31, 2026)
 
 - Add order placement: `(*OrdersService).PlaceOrders`, `ConfirmOrder`,
   `ModifyOrder`, `CancelOrder` and `WhatIf`. Order submission answers with a

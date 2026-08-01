@@ -1,4 +1,4 @@
 package ibclientportal
 
 // Version is the ibclientportal version. Run "make release" to bump this number.
-const Version = "0.9.0"
+const Version = "0.10.0"
