@@ -1,5 +1,22 @@
 # History
 
+## Unreleased
+
+- Fix `CancelOrder` failing on every real cancel. The live gateway answers a
+  cancel with `"order_id"` as a JSON *number*, though it uses a string for the
+  same order when placing it, so decoding into a `string` field failed with
+  `json: cannot unmarshal number into Go struct field
+  CancelOrderResponse.order_id of type string` — after IB had already cancelled
+  the order. The caller saw an error for something that had worked.
+
+  `OrderPlacement.OrderID` and `CancelOrderResponse.OrderID` are now of type
+  `OrderID`, a string that decodes from either JSON shape. This is a breaking
+  change for callers that assign the field to a `string` variable; add a
+  `string(...)` conversion. Placement is included even though it sends a string
+  today: the cancel endpoint shows the gateway does not treat the type as part
+  of its contract, and a placement that fails to decode leaves an order live
+  that the caller believes was rejected.
+
 ## 0.10.0 (July 31, 2026)
 
 - Add order placement: `(*OrdersService).PlaceOrders`, `ConfirmOrder`,

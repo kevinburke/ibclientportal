@@ -189,6 +189,91 @@ func TestCancelOrder(t *testing.T) {
 	}
 }
 
+// TestCancelOrderNumericOrderID covers what the live gateway actually answers
+// a cancel with: order_id as a number, not the string the same gateway uses
+// when the order is placed. Decoding it as a string used to fail the call
+// after IB had already cancelled the order, so the caller reported a failure
+// for something that worked.
+func TestCancelOrderNumericOrderID(t *testing.T) {
+	client, server := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"order_id":1533204928,"msg":"Request was submitted","conid":265598,"account":"U8415442"}`))
+	})
+	defer server.Close()
+
+	resp, err := client.Orders.CancelOrder(testContext(t), "U8415442", "1533204928")
+	if err != nil {
+		t.Fatalf("cancel order: %v", err)
+	}
+	if resp.OrderID != "1533204928" {
+		t.Errorf("unexpected order id %q, want %q", resp.OrderID, "1533204928")
+	}
+	if resp.Message != "Request was submitted" {
+		t.Errorf("unexpected message %q", resp.Message)
+	}
+}
+
+// TestPlaceOrderNumericOrderID guards the other direction of the same
+// inconsistency. IB documents the placement order_id as a string and sends one
+// today, but the cancel endpoint shows the gateway does not consider the type
+// part of its contract, and a placement that fails to decode is far worse than
+// a cancel that does: the order is live and the caller thinks it is not.
+func TestPlaceOrderNumericOrderID(t *testing.T) {
+	client, server := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{"order_id":1533204928,"order_status":"PreSubmitted","local_order_id":"returns-1"}]`))
+	})
+	defer server.Close()
+
+	placements, err := client.Orders.PlaceOrders(testContext(t), "U8415442", []OrderRequest{{
+		Conid: 265598, OrderType: "LMT", Side: "BUY", TIF: "DAY", Quantity: 1, Price: 1,
+	}})
+	if err != nil {
+		t.Fatalf("place orders: %v", err)
+	}
+	if len(placements) != 1 || !placements[0].IsPlaced() {
+		t.Fatalf("expected a placed order, got %#v", placements)
+	}
+	if placements[0].OrderID != "1533204928" {
+		t.Errorf("unexpected order id %q, want %q", placements[0].OrderID, "1533204928")
+	}
+}
+
+func TestOrderIDUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		json string
+		want OrderID
+		err  bool
+	}{
+		{json: `"1533204928"`, want: "1533204928"},
+		{json: `1533204928`, want: "1533204928"},
+		// Big enough that a float64 round trip would round the low digits
+		// away. json.Number keeps the literal, so this stays exact.
+		{json: `9007199254740993`, want: "9007199254740993"},
+		{json: `null`, want: ""},
+		{json: `""`, want: ""},
+		{json: `true`, err: true},
+		{json: `{"id":1}`, err: true},
+	}
+	for _, tt := range tests {
+		var got OrderID
+		err := json.Unmarshal([]byte(tt.json), &got)
+		if tt.err {
+			if err == nil {
+				t.Errorf("unmarshalling %s: expected an error, got %q", tt.json, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("unmarshalling %s: %v", tt.json, err)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("unmarshalling %s = %q, want %q", tt.json, got, tt.want)
+		}
+	}
+}
+
 func TestWhatIf(t *testing.T) {
 	infoCh := make(chan requestInfo, 1)
 	client, server := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {

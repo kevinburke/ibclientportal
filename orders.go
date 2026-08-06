@@ -56,6 +56,43 @@ type OrderRequest struct {
 	Referrer string `json:"referrer,omitempty"`
 }
 
+// OrderID is IB's identifier for an order.
+//
+// It is a string, but the gateway is not consistent about the JSON type it
+// sends: placing an order answers with "order_id":"1533204928" and cancelling
+// that same order answers with "order_id":1533204928. Nothing in the response
+// says which shape to expect, and decoding the wrong one fails the whole
+// request after the gateway has already acted on it — a cancelled order
+// reported to the caller as a failure. So accept either, and keep the value as
+// a string: that is the form every endpoint takes an order ID back in, and it
+// cannot lose the low digits of IB's 10-digit IDs the way a float64 would.
+type OrderID string
+
+// UnmarshalJSON decodes an order ID given as a JSON string or as a number.
+func (o *OrderID) UnmarshalJSON(data []byte) error {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" || trimmed == "null" {
+		*o = ""
+		return nil
+	}
+	if trimmed[0] == '"' {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return fmt.Errorf("ibclientportal: parsing order ID %s: %w", trimmed, err)
+		}
+		*o = OrderID(s)
+		return nil
+	}
+	// json.Number rather than a numeric type so the digits arrive verbatim,
+	// with no rounding and no exponent notation to undo.
+	var n json.Number
+	if err := json.Unmarshal(data, &n); err != nil {
+		return fmt.Errorf("ibclientportal: parsing order ID %s: %w", trimmed, err)
+	}
+	*o = OrderID(n.String())
+	return nil
+}
+
 // OrderPlacement is one element of the response to placing, modifying or
 // confirming an order. The endpoint returns a union of three shapes and which
 // one arrived is not signalled by any type field, so check with IsQuestion and
@@ -77,7 +114,7 @@ type OrderPlacement struct {
 	IsSuppressed bool `json:"isSuppressed,omitempty"`
 
 	// OrderID is IB's identifier for a successfully placed order.
-	OrderID string `json:"order_id,omitempty"`
+	OrderID OrderID `json:"order_id,omitempty"`
 	// OrderStatus is the order's state, e.g. "PreSubmitted" or "Submitted".
 	OrderStatus string `json:"order_status,omitempty"`
 	// LocalOrderID echoes the COID from the request, when one was set.
@@ -204,11 +241,11 @@ func (o *OrdersService) placementRequest(ctx context.Context, path string, body 
 
 // CancelOrderResponse is the response from cancelling a live order.
 type CancelOrderResponse struct {
-	OrderID string `json:"order_id"`
-	Message string `json:"msg"`
-	Conid   int64  `json:"conid"`
-	Account string `json:"account"`
-	Error   string `json:"error"`
+	OrderID OrderID `json:"order_id"`
+	Message string  `json:"msg"`
+	Conid   int64   `json:"conid"`
+	Account string  `json:"account"`
+	Error   string  `json:"error"`
 }
 
 // CancelOrder cancels a live order. IB acknowledges the cancel request
