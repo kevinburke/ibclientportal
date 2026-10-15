@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"strconv"
@@ -136,11 +137,11 @@ type Stream struct {
 // the http(s) scheme to ws(s).
 func (c *Client) wsURL() string {
 	u := c.host + "/v1/api/ws"
-	if strings.HasPrefix(u, "https://") {
-		return "wss://" + strings.TrimPrefix(u, "https://")
+	if after, ok := strings.CutPrefix(u, "https://"); ok {
+		return "wss://" + after
 	}
-	if strings.HasPrefix(u, "http://") {
-		return "ws://" + strings.TrimPrefix(u, "http://")
+	if after, ok := strings.CutPrefix(u, "http://"); ok {
+		return "ws://" + after
 	}
 	return u
 }
@@ -424,9 +425,7 @@ func (s *Stream) sendSubscribe(conid int, fields []string) error {
 func (s *Stream) resubscribeAll() {
 	s.subsMu.Lock()
 	subs := make(map[int][]string, len(s.subs))
-	for conid, fields := range s.subs {
-		subs[conid] = fields
-	}
+	maps.Copy(subs, s.subs)
 	s.subsMu.Unlock()
 
 	for conid, fields := range subs {

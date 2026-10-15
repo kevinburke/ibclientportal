@@ -303,12 +303,12 @@ func TestStreamRenewResubscribes(t *testing.T) {
 			}
 			// Parse the conid out of "smd+<conid>+{...}".
 			rest := strings.TrimPrefix(msg, "smd+")
-			plus := strings.IndexByte(rest, '+')
-			if plus < 0 {
+			before, _, ok := strings.Cut(rest, "+")
+			if !ok {
 				t.Errorf("malformed smd frame: %q", msg)
 				continue
 			}
-			conid, err := strconv.Atoi(rest[:plus])
+			conid, err := strconv.Atoi(before)
 			if err != nil {
 				t.Errorf("bad conid in %q: %v", msg, err)
 				continue

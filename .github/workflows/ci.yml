@@ -16,13 +16,14 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.25'
+          go-version: '1.26.x'
+          check-latest: true
           cache: true
 
       - name: Install formatting tools
         run: |
           go install github.com/kevinburke/differ@v0.0.0-20260403230520-c0574ebcacb2
-          go install golang.org/x/tools/cmd/goimports@latest
+          go install golang.org/x/tools/cmd/goimports@v0.52.0
 
       - name: Check module dependencies
         run: differ go mod tidy
@@ -51,11 +52,12 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.25'
+          go-version: '1.26.x'
+          check-latest: true
           cache: true
 
       - name: Install staticcheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
+        run: go install honnef.co/go/tools/cmd/staticcheck@v0.8.2
 
       - name: Run staticcheck
         run: staticcheck ./...
@@ -70,7 +72,8 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.25'
+          go-version: '1.26.x'
+          check-latest: true
           cache: true
 
       # -short skips integration tests that require a running IB gateway
@@ -85,7 +88,8 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.25'
+          go-version: '1.26.x'
+          check-latest: true
           cache: true
 
       - name: Build command
